@@ -19,7 +19,7 @@
     # Minimum version of the common language runtime (CLR) required by this module.
     # ProcessorArchitecture = 'None'
     # Processor architecture that this module is built for.
-    FunctionsToExport = @('Audit-NTLM', 'Audit-LDAP', 'Ignore-DCs', 'List-DCs')
+    FunctionsToExport = @('Get-NTLMEvents', 'Get-LDAPEvents', 'Ignore-DCs', 'List-DCs')
     # List of functions to export from this module.
     # CmdletsToExport = @()
     # List of cmdlets to export from this module.
