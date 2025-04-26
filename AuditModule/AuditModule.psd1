@@ -6,9 +6,9 @@
     RootModule = 'AuditModule.psm1'
     ModuleVersion = '1.0'
     CompatiblePSEditions = @('Desktop', 'Core')
-    GUID = 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx'
-    Author = 'Ahmed.Bayoumy@GLOBALBRANDS.com'
-    CompanyName = 'GLOBALBRANDS'
+    GUID = 'c5cc2acf-06ce-4f30-9901-a7dd5d476a13'
+    Author = 'abayoumy@outlook.com'
+    CompanyName = 'www.abayoumy.tech'
     Copyright = '(c) 2025 abayoumy. All rights reserved.'
     Description = 'This module contains commands for auditing NTLM and LDAP.'
     PowerShellVersion = '5.1'
@@ -19,7 +19,7 @@
     # Minimum version of the common language runtime (CLR) required by this module.
     # ProcessorArchitecture = 'None'
     # Processor architecture that this module is built for.
-    FunctionsToExport = @('Export-NTLMEvents', 'Export-LDAPEvents', 'List-DCs')
+    FunctionsToExport = @('Export-NTLMEvents', 'Export-LDAPEvents', 'Export-ADInfo')
     # List of functions to export from this module.
     # CmdletsToExport = @()
     # List of cmdlets to export from this module.

@@ -1,0 +1,10 @@
+{
+  "_comment": "List the FQDN or NetBIOS names of Domain Controllers to ignore during audits.",
+  "_example": "To ignore DC1, DC2, and DC3 in the 'contoso.com' domain, add them like this:",
+  "_example_structure": "[\"DC1.contoso.com\", \"DC2\", \"DC3.contoso.com\"]",
+  "ignored-DCs": [
+    "DC1-Example.corp.domain.com",
+    "DC2-Example",
+    "DC3-Example.corp.domain.com"
+  ]
+}

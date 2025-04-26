@@ -2,13 +2,20 @@
 $Global:DomainName = (Get-ADDomain).Name
 $Global:TodayDate = Get-Date -Format "dd-MMM-yyyy"
 $Global:OutputPath = "c:\$DomainName"
-# Create the directory if it doesn't exist
 
-# Read ignored DCs from JSON config file
 try {
-    $IgnoredDCs = Get-Content -Path "$PSScriptRoot\AuditDS.json" -Raw | ConvertFrom-Json
-    $Global:IgnoredDCs = $IgnoredDCs
-    Write-Host "Ignored DCs loaded from AuditDS.json"
+    $IgnoredDCsObject = Get-Content -Path "$PSScriptRoot\AuditDS.json" -Raw | ConvertFrom-Json
+    # Ensure the property exists before trying to access it
+    if ($IgnoredDCsObject -and $IgnoredDCsObject.PSObject.Properties.Name -contains 'ignored-DCs') {
+        $Global:IgnoredDCs = $IgnoredDCsObject.'ignored-DCs'
+        # Check if the array is not null and not empty
+        if ($Global:IgnoredDCs -and $Global:IgnoredDCs.Count -gt 0) {
+            Write-Host "Ignoring the following DCs: $($Global:IgnoredDCs -join ', ')"
+        }
+    } else {
+        # Handle case where JSON is valid but doesn't contain 'ignored-DCs' or is empty/malformed
+        $Global:IgnoredDCs = @()
+    }
 } catch {
     Write-Warning "Could not load ignored DCs from AuditDS.json. $($_.Exception.Message)"
     $Global:IgnoredDCs = @()
@@ -100,6 +107,7 @@ function Export-ADInfo {
     netsh advfirewall show allprofiles > "$OutputPath\Firewall_Profiles.txt"
     $null = Stop-Transcript
     Add-Type -As System.IO.Compression.FileSystem
+    If (Test-Path -Path "$($OutputPath).zip") { Remove-Item  -Force "($OutputPath).zip" }
     [IO.Compression.ZipFile]::CreateFromDirectory( "$OutputPath", "$($OutputPath).zip" )
     If (Test-Path -Path "$($OutputPath).zip") { Remove-Item -Recurse -Force $OutputPath }
     Start-Process "$(Split-Path -parent $OutputPath)"

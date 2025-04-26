@@ -16,7 +16,7 @@ This module is designed for DS auditing purposes. More details will be added soo
     # Allow run unsigned script 
     Set-ExecutionPolicy -scope process bypass
     # Import the Module:
-    Import-Module -Name "AuditModule.psd1"
+    Import-Module ./AuditModule
     Export-NTLMEvents
     Export-LDAPEvents
     
