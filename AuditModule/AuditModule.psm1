@@ -39,7 +39,7 @@ function Export-NTLMEvents {
     _AssertAdminPrivileges # Check for admin privileges
     $OutputPath = "$Global:OutputPath\NTLM-$($Global:TodayDate)\"
     $null = New-Item -Path $OutputPath -ItemType Directory -Force
-    foreach ($DC in (Get-ADDomainController -Filter *).HostName){
+    foreach ($DC in (Get-ADDomainController -Filter *).HostName | Where-Object { $_ -notin $Global:IgnoredDCs }){
         $OutputFile = "$OutputPath\$($DC).csv"
         Write-Host "[$($DC)] Searching log" 
         $Events = Get-WinEvent -ComputerName $DC -Logname security -MaxEvents $MaxEvents  -FilterXPath "Event[System[(EventID=4624)]]and (Event[EventData[Data[@Name='LmPackageName']='NTLM V2']] or Event[EventData[Data[@Name='LmPackageName']='NTLM V1']])" | Select-Object `
@@ -69,7 +69,9 @@ function Export-LDAPEvents {
     $OutputPath = "$Global:OutputPath\LDAP-$($Global:TodayDate)\"
     $null = New-Item -Path $OutputPath -ItemType Directory -Force
     # Implementation for Audit-LDAP
-    Write-Host "Audit-LDAP command executed."
+    foreach ($DC in (Get-ADDomainController -Filter *).HostName | Where-Object { $_ -notin $Global:IgnoredDCs }){
+
+    }
 }
 
 # Generate DC list
@@ -107,12 +109,19 @@ function Export-ADInfo {
     netsh advfirewall show allprofiles > "$OutputPath\Firewall_Profiles.txt"
     $null = Stop-Transcript
     Add-Type -As System.IO.Compression.FileSystem
-    If (Test-Path -Path "$($OutputPath).zip") { Remove-Item  -Force "($OutputPath).zip" }
-    [IO.Compression.ZipFile]::CreateFromDirectory( "$OutputPath", "$($OutputPath).zip" )
+    If (Test-Path -Path "$($OutputPath).zip") { Remove-Item  -Force "$($OutputPath).zip" }
+    [IO.Compression.ZipFile]::CreateFromDirectory( "$($OutputPath)", "$($OutputPath).zip" )
     If (Test-Path -Path "$($OutputPath).zip") { Remove-Item -Recurse -Force $OutputPath }
     Start-Process "$(Split-Path -parent $OutputPath)"
 }
 
+# Function to list Domain Controllers with specific details
+function Get-DCs {
+    [CmdletBinding()]
+    param()
 
+    # Retrieve and format DC information
+    return (Get-ADDomainController -Filter * | Select-Object HostName, IsReadOnly, OperatingSystem, IPv4Address, Site | Sort-Object HostName | Format-Table | Out-String).Trim()
+}
 
-Export-ModuleMember -Function Export-NTLMEvents, Export-LDAPEvents, Export-ADInfo
+Export-ModuleMember -Function Export-NTLMEvents, Export-LDAPEvents, Export-ADInfo, Get-DCs
