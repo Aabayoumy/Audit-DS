@@ -1,6 +1,13 @@
+
+# TODO:
+# - separate each function on separate file under public folder 
+# - add help to each function 
+
+
 # Create global variable OutputPath
 $Global:DomainName = (Get-ADDomain).Name
 $Global:OutputPath = "c:\$DomainName"
+
 
 # Private function to load ignored DCs from JSON
 function _GetIgnoredDCs {
@@ -89,11 +96,11 @@ function Export-LDAPEvents {
     $IgnoredDCs =  _GetIgnoredDCs # Load ignored DCs
     # Implementation for Audit-LDAP
     foreach ($DC in (Get-ADDomainController -Filter *).HostName | Where-Object { $_ -notin $IgnoredDCs }){
-
+        $OutputFile = "$OutputPath\$($DC)_$((Get-Date).ToString('dd-MMMM-yyyy')).csv"
+        $Events = Get-WinEvent -Logname "Directory Service" -FilterXPath "Event[System[(EventID=2889)]]" | Select-Object @{Label='Time';Expression={$_.TimeCreated.ToString('g')}},   @{Label='SourceIP';Expression={$_.Properties[0].Value}},    @{Label='User';Expression={$_.Properties[1].Value}}
+        $Events | Export-Csv $OutputFile -NoTypeInformation
     }
 }
-
-# Generate DC list
 function Export-ADInfo {
     [CmdletBinding()]
     param (
@@ -113,8 +120,6 @@ function Export-ADInfo {
     Add-Content -Path "$OutputPath\_ADInfo_$($ADDomain.DNSRoot).txt" -Value "`r`n-IPConfig"
     (ipconfig /all  | Out-String).Trim() >> "$OutputPath\_ADInfo_$($ADDomain.DNSRoot).txt"
     repadmin /showrepl *   /csv > "$OutputPath\showrepl.csv"
-    # repadmin /showrepl $(${Env:ComputerName}) /csv > "$OutputPath\$(${Env:ComputerName})_showrepl.csv"
-    # repadmin /replsummary  /csv > "$OutputPath\$(${Env:ComputerName})_replsummary.csv"
     Gpresult /h "$($OutputPath)\$($env:computername)_GPResult.html"
     Auditpol /get /category:* > "$($OutputPath)\$($env:computername)_Audit.txt"
     (Get-ADForest -Current LoggedOnUser).Domains | %{ Get-ADDefaultDomainPasswordPolicy -Identity $_ } > "$OutputPath\DomainPasswordPolicy.txt"
@@ -130,6 +135,10 @@ function Export-ADInfo {
     
     Get-ADComputer -Filter { (LastLogonTimestamp -lt $time -or LastLogonTimestamp -notlike "*") } -Properties LastLogonTimestamp, WhenCreated, PasswordLastSet | Select-Object Name, WhenCreated, PasswordLastSet, @{N="LastLogonTimestamp";E={if ($_.LastLogonTimestamp) {[datetime]::FromFileTime($_.LastLogonTimestamp)} else {"Never"}}} > "$OutputPath\Inactive_Computers.txt"
     Get-ADUser "krbtgt" -Property Created, PasswordLastSet > "$OutputPath\$($ADDomain.DNSRoot)_krbtgt.txt"
+    # TODO:
+    # - export users states for : azure sso , MSOL's and azureadkerberos
+    # - export out of support OS computers with parameter --all for all Computers
+
     netsh advfirewall show allprofiles > "$OutputPath\Firewall_Profiles.txt"
     Export-AdminUsers -OutputPath $OutputPath
     $null = Stop-Transcript
