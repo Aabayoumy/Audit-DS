@@ -1,15 +1,4 @@
-# Audit-DS
-
-This repository contains the Audit-DS module.
-
-## Description
-
-This module is designed for DS auditing purposes. More details will be added soon.
-
-## Usage
-Copy this script and run it on Powershell As admin 
-    ```powershell
-   $ErrorActionPreference = 'Stop'
+$ErrorActionPreference = 'Stop'
 $repoUrl = "https://github.com/Aabayoumy/Audit-DS/archive/refs/heads/main.zip"
 $zipFile = "Audit-DS-main.zip" 
 $extractPath = "." 
@@ -45,6 +34,3 @@ try {
 } catch { Write-Warning "Failed to remove zip file '$zipFile': $($_.Exception.Message). Manual removal may be needed." }
 
 Write-Host "Audit-DS Setup Complete."
-
-    
-    ```
