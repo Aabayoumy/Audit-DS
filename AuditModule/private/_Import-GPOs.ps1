@@ -40,7 +40,7 @@ function Import-GPOs {
             $gpoDisplayName = $_
             $guid = $GpoMap[$gpoDisplayName]
 
-            Write-Host "Importing '$gpoDisplayName' (GUID: $guid) as '$gpoDisplayName'" -ForegroundColor Cyan
+            Write-Host "Importing '$gpoDisplayName' (GUID: $guid) " -ForegroundColor Cyan
             if ($PSCmdlet.ShouldProcess($gpoDisplayName, "Import GPO from Backup ID $guid")) {
                 try {
                     Import-GPO -BackupId $guid -Path $GpoBackupPath -TargetName $gpoDisplayName -CreateIfNeeded -ErrorAction Stop
@@ -52,6 +52,6 @@ function Import-GPOs {
             }
         }
 
-        Write-Host "GPO import process completed." -ForegroundColor Green
+
     }
 }

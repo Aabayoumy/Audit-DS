@@ -12,5 +12,5 @@ function Enable-Audit {
                 # Re-throw the exception if needed or handle it
                 # throw $_ # Uncomment to re-throw
             }
-
+            Write-Host "GPO import process completed, Don't Forget to review and link GPO" -ForegroundColor Green
 }
