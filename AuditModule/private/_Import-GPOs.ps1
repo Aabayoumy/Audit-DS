@@ -5,7 +5,7 @@ function Import-GPOs {
         [parameter(Mandatory=$true)]
         [ValidateScript({ Test-Path -Path $_ -PathType Container })]
         [String]
-        $GpoBackupPath,
+        $GpoBackupPath
 
     )
 
