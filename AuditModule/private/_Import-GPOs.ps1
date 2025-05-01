@@ -30,12 +30,7 @@ function Import-GPOs {
             Write-Error "No GPOs found or mapped in the backup path: $GpoBackupPath"
             return
         }
-
-        Write-Host "Preparing to import the following GPOs:" -ForegroundColor Cyan
-        Write-Host
-        $GpoMap.Keys | ForEach-Object { Write-Host $_ -ForegroundColor Cyan }
         # Import GPOs
-        Write-Host "Starting GPO import process..." -ForegroundColor Green
         $GpoMap.Keys | ForEach-Object {
             $gpoDisplayName = $_
             $guid = $GpoMap[$gpoDisplayName]
