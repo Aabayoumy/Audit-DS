@@ -1,7 +1,7 @@
 function Enable-Audit {
 
         Write-Verbose "Starting GPO import process."
-
+        Write-Host $PSScriptRoot
             try {
                 # Call the internal function, splatting the parameters
                 # Note: Assumes Import-GPOs is available in the module scope
