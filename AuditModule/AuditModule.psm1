@@ -10,6 +10,7 @@ $Global:OutputPath = "c:\$DomainName"
 # Get the directory of the current script (.psm1 file)
 $PSScriptRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
 
+Write-Host $PSScriptRoot 
 # Define paths to the private and public function directories
 $PrivateFunctionsPath = Join-Path -Path $PSScriptRoot -ChildPath "private"
 $PublicFunctionsPath = Join-Path -Path $PSScriptRoot -ChildPath "public"
@@ -33,4 +34,4 @@ Get-ChildItem -Path $PublicFunctionsPath -Filter *.ps1 | ForEach-Object {
 }
 
 # Export only the public functions
-Export-ModuleMember -Function Export-NTLMEvents, Export-LDAPEvents, Export-ADInfo, Get-DCs, Export-AdminUsers
+Export-ModuleMember -Function Export-NTLMEvents, Export-LDAPEvents, Export-ADInfo, Get-DCs, Export-AdminUsers , Enable-Audit

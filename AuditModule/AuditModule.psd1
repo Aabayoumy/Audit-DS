@@ -20,7 +20,7 @@
     # Minimum version of the common language runtime (CLR) required by this module.
     # ProcessorArchitecture = 'None'
     # Processor architecture that this module is built for.
-    FunctionsToExport = @('Export-NTLMEvents', 'Export-LDAPEvents', 'Export-ADInfo' , 'Get-DCs' , 'Export-AdminUsers')
+    FunctionsToExport = @('Export-NTLMEvents', 'Export-LDAPEvents', 'Export-ADInfo' , 'Get-DCs' , 'Export-AdminUsers' , 'Enable-Audit')
     # List of functions to export from this module.
     # CmdletsToExport = @()
     # List of cmdlets to export from this module.
