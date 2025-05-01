@@ -1,30 +1,5 @@
 function Import-GPOs {
-<#
-.SYNOPSIS
-Internal function to import Group Policy Objects (GPOs) from a backup location into Active Directory.
 
-.DESCRIPTION
-This function takes a path to a GPO backup directory, maps the GPO display names to their backup GUIDs using the MapGuidsToGpoNames function,
-updates a specific GPO file's content, copies Bginfo files, and then imports each GPO into the current domain.
-
-.PARAMETER GpoBackupPath
-The path to the directory containing the GPO backups (e.g., the 'GPOs' folder).
-
-.PARAMETER FileUpdateGpoGuid
-The GUID of the specific GPO backup whose 'Files.xml' needs updating. Defaults to '{AB41A6CC-D880-4B3F-9D48-BA1DFAF73860}'.
-
-.PARAMETER BginfoSourcePath
-The path to the source 'Bginfo' directory that needs to be copied to the domain's SYSVOL scripts folder.
-
-.EXAMPLE
-Import-GPOs -GpoBackupPath "C:\Path\To\GPO\Backups" -BginfoSourcePath "C:\Path\To\Bginfo"
-
-.NOTES
-Relies on the MapGuidsToGpoNames private function being loaded.
-Requires the Active Directory PowerShell module.
-Requires appropriate permissions to import GPOs and write to SYSVOL.
-Uses $Env:USERDNSDOMAIN to determine the current domain and SYSVOL path.
-#>
     [CmdletBinding(SupportsShouldProcess=$true)]
     param(
         [parameter(Mandatory=$true)]
@@ -32,15 +7,6 @@ Uses $Env:USERDNSDOMAIN to determine the current domain and SYSVOL path.
         [String]
         $GpoBackupPath,
 
-        [parameter(Mandatory=$false)]
-        [ValidateNotNullOrEmpty()]
-        [String]
-        $FileUpdateGpoGuid = '{AB41A6CC-D880-4B3F-9D48-BA1DFAF73860}',
-
-        [parameter(Mandatory=$true)]
-        [ValidateScript({ Test-Path -Path $_ -PathType Container })]
-        [String]
-        $BginfoSourcePath
     )
 
     process {
