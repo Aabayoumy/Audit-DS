@@ -10,8 +10,13 @@ function Export-LDAPEvents {
     $IgnoredDCs =  _GetIgnoredDCs # Load ignored DCs
     # Implementation for Audit-LDAP
     foreach ($DC in (Get-ADDomainController -Filter *).HostName | Where-Object { $_ -notin $IgnoredDCs }){
-        $OutputFile = "$OutputPath\$($DC)_$((Get-Date).ToString('dd-MMMM-yyyy')).csv"
+        $OutputFile = "$OutputPath\$($DC).csv"
+        Write-Host "[$($DC)] Searching log"
         $Events = Get-WinEvent -Logname "Directory Service" -FilterXPath "Event[System[(EventID=2889)]]" | Select-Object @{Label='Time';Expression={$_.TimeCreated.ToString('g')}},   @{Label='SourceIP';Expression={$_.Properties[0].Value}},    @{Label='User';Expression={$_.Properties[1].Value}}
-        $Events | Export-Csv $OutputFile -NoTypeInformation
+        if ($Events) {
+            $Events | Export-Csv $OutputFile -NoTypeInformation
+        } else {
+            Write-Host "No LDAP events (EventID 2889) found on $DC."
+        }
     }
 }
