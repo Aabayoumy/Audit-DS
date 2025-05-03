@@ -8,11 +8,15 @@ function Export-LDAPEvents {
     $OutputPath = "$Global:OutputPath\LDAP-$($((Get-Date).ToString('ddMMMyy-HHmm')))\"
     $null = New-Item -Path $OutputPath -ItemType Directory -Force
     $IgnoredDCs =  _GetIgnoredDCs # Load ignored DCs
-    # Implementation for Audit-LDAP
+    $StartTime = (Get-Date).AddDays(-7) # Limit to the last 7 days
     foreach ($DC in (Get-ADDomainController -Filter *).HostName | Where-Object { $_ -notin $IgnoredDCs }){
         $OutputFile = "$OutputPath\$($DC).csv"
         Write-Host "[$($DC)] Searching log"
-        $Events = Get-WinEvent -Logname "Directory Service" -FilterXPath "Event[System[(EventID=2889)]]" -ErrorAction SilentlyContinue | Select-Object @{Label='Time';Expression={$_.TimeCreated.ToString('g')}},   @{Label='SourceIP';Expression={$_.Properties[0].Value}},    @{Label='User';Expression={$_.Properties[1].Value}}
+        $Events = Get-WinEvent -ComputerName $DC -FilterHashtable @{
+            LogName = 'Directory Service';
+            ID = 2889;
+            StartTime = $StartTime
+        } -MaxEvents $MaxEvents | Select-Object @{Label='Time';Expression={$_.TimeCreated.ToString('g')}},   @{Label='SourceIP';Expression={$_.Properties[0].Value}},    @{Label='User';Expression={$_.Properties[1].Value}}
         if ($Events) {
             $Events | Export-Csv $OutputFile -NoTypeInformation
         } else {
