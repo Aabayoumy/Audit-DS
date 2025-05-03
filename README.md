@@ -6,6 +6,31 @@ This repository contains the Audit-DS module.
 
 This module is designed for DS auditing purposes. More details will be added soon.
 
+## Functions
+
+### Enable-Audit
+Imports GPO settings to enable auditing.
+
+### Export-ADInfo
+Exports comprehensive Active Directory information to files.
+- `-zip`: Compresses output files into a zip archive.
+
+### Export-AdminUsers
+Exports administrative users based on group membership and adminCount.
+- `-OutputPath`: Path to export the CSV file.
+
+### Export-LDAPEvents
+Exports LDAP events from domain controllers.
+- `-MaxEvents`: Maximum number of events to retrieve (default: 10000).
+
+### Export-NTLMEvents
+Exports NTLM authentication events from domain controllers.
+- `-MaxEvents`: Maximum number of events to retrieve (default: 10000).
+- `-AllNTLM`: Includes NTLM V2 events (default: only NTLM V1).
+
+### Get-DCs
+Lists domain controllers with specific details.
+
 ## Usage
 Copy this script and run it on Powershell As admin 
     ```powershell
