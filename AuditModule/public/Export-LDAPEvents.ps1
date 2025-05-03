@@ -16,7 +16,7 @@ function Export-LDAPEvents {
             LogName = 'Directory Service';
             ID = 2889;
             StartTime = $StartTime
-        } -MaxEvents $MaxEvents | Select-Object @{Label='Time';Expression={$_.TimeCreated.ToString('g')}},   @{Label='SourceIP';Expression={$_.Properties[0].Value}},    @{Label='User';Expression={$_.Properties[1].Value}}
+        } -MaxEvents $MaxEvents | Select-Object @{Label='Time';Expression={$_.TimeCreated.ToString('g')}},   @{Label='SourceIP';Expression={($_.Properties[0].Value -split ':')[0]}},    @{Label='User';Expression={$_.Properties[1].Value}}
         if ($Events) {
             $Events | Export-Csv $OutputFile -NoTypeInformation
         } else {
