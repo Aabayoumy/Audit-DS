@@ -2,12 +2,17 @@ function Export-NTLMEvents {
     [CmdletBinding()]
     param (
         # Define parameters for Audit-NTLM here
-        [int]$MaxEvents = 10000
+        [int]$MaxEvents = 10000,
+        [switch]$AllNTLM # Add this switch to include NTLM V2 events
     )
     _AssertAdminPrivileges # Check for admin privileges
     $OutputPath = "$Global:OutputPath\NTLM-$((Get-Date).ToString('ddMMMyy-HHmm'))\"
     $null = New-Item -Path $OutputPath -ItemType Directory -Force
     $IgnoredDCs =  _GetIgnoredDCs # Load ignored DCs
+
+    # Determine which NTLM versions to filter based on the -AllNTLM switch
+    $NtlmFilter = if ($AllNTLM.IsPresent) { @('NTLM V1', 'NTLM V2') } else { @('NTLM V1') }
+
     foreach ($DC in (Get-ADDomainController -Filter *).HostName | Where-Object { $_ -notin $IgnoredDCs }){
         $OutputFile = "$OutputPath\$($DC).csv"
         Write-Host "[$($DC)] Searching log"
@@ -17,7 +22,7 @@ function Export-NTLMEvents {
             ID = 4624;
             StartTime = $StartTime
         } -MaxEvents $MaxEvents | Where-Object {
-            $_.Properties[14].Value -in @('NTLM V1', 'NTLM V2')
+            $_.Properties[14].Value -in $NtlmFilter # Use the dynamic filter
         } | Select-Object `
         @{Label='Time';Expression={$_.TimeCreated.ToString('g')}},
         @{Label='UserName';Expression={$_.Properties[5].Value}},
