@@ -11,7 +11,14 @@ function Export-NTLMEvents {
     foreach ($DC in (Get-ADDomainController -Filter *).HostName | Where-Object { $_ -notin $IgnoredDCs }){
         $OutputFile = "$OutputPath\$($DC).csv"
         Write-Host "[$($DC)] Searching log"
-        $Events = Get-WinEvent -ComputerName $DC -Logname security -MaxEvents $MaxEvents  -FilterXPath "Event[System[(EventID=4624)]]and (Event[EventData[Data[@Name='LmPackageName']='NTLM V2']] or Event[EventData[Data[@Name='LmPackageName']='NTLM V1']])" | Select-Object `
+        $StartTime = (Get-Date).AddDays(-7) # Limit to the last 7 days
+        $Events = Get-WinEvent -ComputerName $DC -FilterHashtable @{
+            LogName = 'Security';
+            ID = 4624;
+            StartTime = $StartTime
+        } -MaxEvents $MaxEvents | Where-Object {
+            $_.Properties[14].Value -in @('NTLM V1', 'NTLM V2')
+        } | Select-Object `
         @{Label='Time';Expression={$_.TimeCreated.ToString('g')}},
         @{Label='UserName';Expression={$_.Properties[5].Value}},
         @{Label='WorkstationName';Expression={$_.Properties[11].Value}},

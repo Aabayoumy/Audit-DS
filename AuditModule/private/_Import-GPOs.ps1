@@ -18,8 +18,8 @@ function Import-GPOs {
 
         # Ensure the AD module is available
         if (-not (Get-Module -Name ActiveDirectory -ListAvailable)) {
-             Write-Error "Active Directory PowerShell module is required but not found."
-             return
+            Write-Error "Active Directory PowerShell module is required but not found."
+            return
         }
         Import-Module ActiveDirectory -ErrorAction Stop
 
