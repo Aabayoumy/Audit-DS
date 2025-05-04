@@ -33,11 +33,11 @@ function Export-AdminUsers {
     # Hashtable to store unique admin users found
     $AdminUsers = @{}
 
-    Write-Host "Searching for admin users in specified groups..."
+    Write-Verbose "Searching for admin users in specified groups..."
 
     foreach ($GroupName in $AdminGroups) {
         try {
-            Write-Host "Checking group: $GroupName"
+            Write-Verbose "Checking group: $GroupName"
             # Ensure we only process user objects
             $GroupMembers = Get-ADGroupMember -Identity $GroupName -ErrorAction Stop | Where-Object { $_.objectClass -eq 'user' }
 
@@ -59,7 +59,7 @@ function Export-AdminUsers {
 
                             # Convert PwdLastSet from ticks to DateTime (UTC based on AD standard)
                             $PwdLastSetDate = if ($User.pwdLastSet -ne $null -and $User.pwdLastSet -ne 0) {
-                                 [datetime]::FromFileTimeUtc((Get-Date -Date "1601-01-01 00:00:00Z").AddTicks($User.pwdLastSet).Ticks)
+                                [datetime]::FromFileTimeUtc((Get-Date -Date "1601-01-01 00:00:00Z").AddTicks($User.pwdLastSet).Ticks)
                             } else {
                                 $null # Or use a placeholder like 'Never' or 'Password Never Expires'
                             }
@@ -80,39 +80,39 @@ function Export-AdminUsers {
                             try {
                                 $userAdminGroups = Get-ADPrincipalGroupMembership -Identity $User.SamAccountName -ErrorAction Stop | Where-Object { $AdminGroups -contains $_.Name } | Select-Object -ExpandProperty Name
                                 $AdminUsers[$User.SamAccountName].MemberOfAdminGroups = $userAdminGroups -join ", "
-                                # Write-Host "  Found admin user: $($User.SamAccountName) (Member of: $($AdminUsers[$User.SamAccountName].MemberOfAdminGroups))" -ForegroundColor Green
+                                # Write-Verbose "  Found admin user: $($User.SamAccountName) (Member of: $($AdminUsers[$User.SamAccountName].MemberOfAdminGroups))"
                             } catch {
-                                Write-Warning "Could not retrieve group membership for user '$($User.SamAccountName)': $($_.Exception.Message)"
+                                Write-Verbose "Could not retrieve group membership for user '$($User.SamAccountName)': $($_.Exception.Message)"
                                 # Still add the user but indicate group membership check failed
                                 $AdminUsers[$User.SamAccountName].MemberOfAdminGroups = "Error checking groups"
-                                Write-Host "  Found admin user: $($User.SamAccountName) (Group check failed)" -ForegroundColor Yellow
+                                Write-Verbose "  Found admin user: $($User.SamAccountName) (Group check failed)"
                             }
                         }
                     } catch {
                         # Catch errors getting user details (e.g., permissions, user deleted between steps)
-                        Write-Warning "Could not retrieve details for user '$($Member.SamAccountName)': $($_.Exception.Message)"
+                        Write-Verbose "Could not retrieve details for user '$($Member.SamAccountName)': $($_.Exception.Message)"
                     }
                 }
             }
         } catch [Microsoft.ActiveDirectory.Management.ADIdentityNotFoundException] {
-            Write-Warning "Group '$GroupName' not found or could not be accessed."
+            Write-Verbose "Group '$GroupName' not found or could not be accessed."
         } catch {
             # Catch other errors during group member retrieval
-            Write-Warning "An error occurred while processing group '$GroupName': $($_.Exception.Message)"
+            Write-Verbose "An error occurred while processing group '$GroupName': $($_.Exception.Message)"
         }
     }
 
     # Export the collected users to CSV
     if ($AdminUsers.Count -gt 0) {
         try {
-            Write-Host "Exporting $($AdminUsers.Count) admin users to $OutputFile..." # Corrected variable name from $ExportPath
+            Write-Verbose "Exporting $($AdminUsers.Count) admin users to $OutputFile..." # Corrected variable name from $ExportPath
             # Add PasswordNeverExpires to the Select-Object list for export
             $AdminUsers.Values | Select-Object SamAccountName, PwdLastSet, Enabled, LastLogonTimestamp, PasswordNeverExpires, MemberOfAdminGroups | Export-Csv -Path $OutputFile -NoTypeInformation -Encoding UTF8 -ErrorAction Stop
-            # Write-Host "Export complete: $OutputFile" -ForegroundColor Green # Corrected variable name from $ExportPath
+            # Write-Verbose "Export complete: $OutputFile" # Corrected variable name from $ExportPath
         } catch {
             Write-Error "Failed to export CSV file to '$OutputFile': $($_.Exception.Message)" # Corrected variable name from $ExportPath
         }
     } else {
-        Write-Host "No admin users found matching the criteria (member of specified groups and adminCount=1)." -ForegroundColor Yellow
+        Write-Verbose "No admin users found matching the criteria (member of specified groups and adminCount=1)."
     }
 }

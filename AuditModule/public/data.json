@@ -1,0 +1,160 @@
+{
+    "windows_versions": [
+      {
+        "version": "Windows XP",
+        "build_number": "2600",
+        "end_of_mainstream_support": "2009-04-14",
+        "end_of_extended_support": "2014-04-08"
+      },
+      {
+        "version": "Windows Vista",
+        "build_number": "6000",
+        "end_of_mainstream_support": "2012-04-10",
+        "end_of_extended_support": "2017-04-11"
+      },
+      {
+        "version": "Windows 7",
+        "build_number": "7600",
+        "end_of_mainstream_support": "2015-01-13",
+        "end_of_extended_support": "2020-01-14",
+        "note": "Extended Security Updates (ESU) available until 2023-01-10 for paying customers"
+      },
+      {
+        "version": "Windows 8",
+        "build_number": "9200",
+        "end_of_mainstream_support": "2016-01-12",
+        "end_of_extended_support": "2016-01-12",
+        "note": "Users required to upgrade to Windows 8.1 for continued support"
+      },
+      {
+        "version": "Windows 8.1",
+        "build_number": "9600",
+        "end_of_mainstream_support": "2018-01-09",
+        "end_of_extended_support": "2023-01-10"
+      },
+      {
+        "version": "Windows 10 (All Editions, 22H2)",
+        "build_number": "19045",
+        "end_of_mainstream_support": "N/A",
+        "end_of_extended_support": "2025-10-14",
+        "note": "Final version 22H2; ESU available for consumers ($30/year) until 2026-10-14, businesses up to 2028-10-14"
+      },
+      {
+        "version": "Windows 10 Enterprise LTSC 2015",
+        "build_number": "10240",
+        "end_of_mainstream_support": "2020-10-13",
+        "end_of_extended_support": "2025-10-14"
+      },
+      {
+        "version": "Windows 10 Enterprise LTSC 2016",
+        "build_number": "14393",
+        "end_of_mainstream_support": "2021-10-12",
+        "end_of_extended_support": "2026-10-13"
+      },
+      {
+        "version": "Windows 10 Enterprise LTSC 2019",
+        "build_number": "17763",
+        "end_of_mainstream_support": "2024-01-09",
+        "end_of_extended_support": "2029-01-09"
+      },
+      {
+        "version": "Windows 10 Enterprise LTSC 2021",
+        "build_number": "19044",
+        "end_of_mainstream_support": "2027-01-12",
+        "end_of_extended_support": "2032-01-13"
+      },
+      {
+        "version": "Windows 11 (21H2)",
+        "build_number": "22000",
+        "end_of_mainstream_support": "2023-10-10",
+        "end_of_extended_support": "2024-10-08",
+        "note": "Enterprise and Education editions only for extended support"
+      },
+      {
+        "version": "Windows 11 (22H2)",
+        "build_number": "22621",
+        "end_of_mainstream_support": "2024-10-14",
+        "end_of_extended_support": "2025-10-14",
+        "note": "Enterprise and Education editions"
+      },
+      {
+        "version": "Windows 11 (23H2)",
+        "build_number": "22631",
+        "end_of_mainstream_support": "2025-11-11",
+        "end_of_extended_support": "2026-11-10",
+        "note": "Projected dates based on 24-month support cycle for Enterprise/Education"
+      },
+      {
+        "version": "Windows 11 (24H2)",
+        "build_number": "26100",
+        "end_of_mainstream_support": "2026-10-13",
+        "end_of_extended_support": "2027-10-12",
+        "note": "Projected dates based on 24-month support cycle for Enterprise/Education"
+      },
+      {
+        "version": "Windows 11 IoT Enterprise LTSC 2021",
+        "build_number": "19044",
+        "end_of_mainstream_support": "2027-01-12",
+        "end_of_extended_support": "2032-01-13"
+      },
+      {
+        "version": "Windows Server 2003",
+        "build_number": "3790",
+        "end_of_mainstream_support": "2010-07-13",
+        "end_of_extended_support": "2015-07-14"
+      },
+      {
+        "version": "Windows Server 2008",
+        "build_number": "6001",
+        "end_of_mainstream_support": "2015-01-13",
+        "end_of_extended_support": "2020-01-14",
+        "note": "ESU available until 2023-01-10, or 2024-01-09 on Azure"
+      },
+      {
+        "version": "Windows Server 2008 R2",
+        "build_number": "7600",
+        "end_of_mainstream_support": "2015-01-13",
+        "end_of_extended_support": "2020-01-14",
+        "note": "ESU available until 2023-01-10, or 2024-01-09 on Azure"
+      },
+      {
+        "version": "Windows Server 2012",
+        "build_number": "9200",
+        "end_of_mainstream_support": "2018-10-09",
+        "end_of_extended_support": "2023-10-10",
+        "note": "ESU available until 2026-10-13"
+      },
+      {
+        "version": "Windows Server 2012 R2",
+        "build_number": "9600",
+        "end_of_mainstream_support": "2018-10-09",
+        "end_of_extended_support": "2023-10-10",
+        "note": "ESU available until 2026-10-13"
+      },
+      {
+        "version": "Windows Server 2016",
+        "build_number": "14393",
+        "end_of_mainstream_support": "2022-01-11",
+        "end_of_extended_support": "2027-01-12"
+      },
+      {
+        "version": "Windows Server 2019",
+        "build_number": "17763",
+        "end_of_mainstream_support": "2024-01-09",
+        "end_of_extended_support": "2029-01-09"
+      },
+      {
+        "version": "Windows Server 2022",
+        "build_number": "20348",
+        "end_of_mainstream_support": "2026-10-13",
+        "end_of_extended_support": "2031-10-14"
+      },
+      {
+        "version": "Windows Server 2025",
+        "build_number": "26100",
+        "end_of_mainstream_support": "2029-10-09",
+        "end_of_extended_support": "2034-10-09",
+        "note": "Projected dates based on LTSC 5+5 year lifecycle"
+      }
+    ]
+  }

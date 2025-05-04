@@ -34,10 +34,10 @@ function Export-ADInfo {
     Get-ADUser "krbtgt" -Property Created, PasswordLastSet > "$OutputPath\$($ADDomain.DNSRoot)_krbtgt.txt"
     # TODO:
     # - export users states for : azure sso , MSOL's and azureadkerberos
-    # - export out of support OS computers with parameter --all for all Computers
 
     netsh advfirewall show allprofiles > "$OutputPath\Firewall_Profiles.txt"
     Export-AdminUsers -OutputPath $OutputPath
+    Export-ComputersOS -OutputPath $OutputPath
     $null = Stop-Transcript
     if ($zip.IsPresent) {
         Add-Type -As System.IO.Compression.FileSystem

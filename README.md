@@ -28,6 +28,11 @@ Exports NTLM authentication events from domain controllers.
 - `-MaxEvents`: Maximum number of events to retrieve (default: 10000).
 - `-AllNTLM`: Includes NTLM V2 events (default: only NTLM V1).
 
+### Export-ComputersOS
+Exports computer OS details and end-of-support status from Active Directory.
+- `-OutputPath`: Path to export the CSV file.
+- `-ExportAll`: Exports all computers, not just those nearing or past end-of-support.
+
 ### Get-DCs
 Lists domain controllers with specific details.
 
