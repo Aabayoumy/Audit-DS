@@ -37,8 +37,8 @@ Exports computer OS details and end-of-support status from Active Directory.
 Lists domain controllers with specific details.
 
 ## Usage
-1 - Download `https://github.com/Aabayoumy/Audit-DS/archive/refs/heads/main.zip` extract and move to Domain Controller.
-2 - Open PowerShell as Admin and CD to extracted folder.
-3 - Set execution policy `Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser -Force`
-4 - `Import-Module -Name .\AuditModule -Force`
+- Download `https://github.com/Aabayoumy/Audit-DS/archive/refs/heads/main.zip` extract and move to Domain Controller.
+- Open PowerShell as Admin and CD to extracted folder.
+- Set execution policy `Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser -Force`
+- `Import-Module -Name .\AuditModule -Force`
 
