@@ -31,9 +31,20 @@ function Export-ADInfo {
     Get-ADUser -Filter '(LastLogonTimestamp -lt $time)' -Properties enabled,PasswordLastSet,LastLogonTimestamp | Format-Table Name,enabled,PasswordLastSet,@{N="LastLogonTimestamp";E={[datetime]::FromFileTime($_.LastLogonTimestamp)}}  >  "$OutputPath\Inactive_Users.txt"
 
     Get-ADComputer -Filter { (LastLogonTimestamp -lt $time -or LastLogonTimestamp -notlike "*") } -Properties LastLogonTimestamp, WhenCreated, PasswordLastSet | Select-Object Name, WhenCreated, PasswordLastSet, @{N="LastLogonTimestamp";E={if ($_.LastLogonTimestamp) {[datetime]::FromFileTime($_.LastLogonTimestamp)} else {"Never"}}} > "$OutputPath\Inactive_Computers.txt"
-    Get-ADUser "krbtgt" -Property Created, PasswordLastSet > "$OutputPath\$($ADDomain.DNSRoot)_krbtgt.txt"
-    # TODO:
-    # - export users states for : azure sso , MSOL's and azureadkerberos
+    
+    # Define the list of special user account patterns to check
+    $SpecialUserPatterns = @(
+        'krb*',
+        'Azure*',
+        'MSOL*'
+        # Add more patterns here if needed in the future
+    )
+
+    # Retrieve and export details for the specified special users
+    $SpecialUsersData = foreach ($pattern in $SpecialUserPatterns) {
+        Get-ADUser -Filter "samaccountname -like '$pattern'" -Properties Created, PasswordLastSet, Enabled | Select-Object Name, samaccountname, Created, PasswordLastSet, Enabled
+    }
+    $SpecialUsersData | Sort-Object samaccountname | Export-Csv -Path "$OutputPath\SpecialUsers.csv" -NoTypeInformation -Encoding UTF8
 
     netsh advfirewall show allprofiles > "$OutputPath\Firewall_Profiles.txt"
     Export-AdminUsers -OutputPath $OutputPath
