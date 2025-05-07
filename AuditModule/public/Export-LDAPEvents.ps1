@@ -2,7 +2,8 @@ function Export-LDAPEvents {
     [CmdletBinding()]
     param (
         # Define parameters for Audit-LDAP here
-        [int]$MaxEvents = 10000
+        [int]$MaxEvents = 10000,
+        [int]$Timeout = 180
     )
     _AssertAdminPrivileges # Check for admin privileges
     $OutputPath = "$Global:OutputPath\LDAP-$($((Get-Date).ToString('ddMMMyy-HHmm')))\"
@@ -12,15 +13,33 @@ function Export-LDAPEvents {
     foreach ($DC in (Get-ADDomainController -Filter *).HostName | Where-Object { $_ -notin $IgnoredDCs }){
         $OutputFile = "$OutputPath\$($DC).csv"
         Write-Host "[$($DC)] Searching log"
-        $Events = Get-WinEvent -ComputerName $DC -FilterHashtable @{
-            LogName = 'Directory Service';
-            ID = 2889;
-            StartTime = $StartTime
-        } -MaxEvents $MaxEvents | Select-Object @{Label='Time';Expression={$_.TimeCreated.ToString('g')}},   @{Label='SourceIP';Expression={($_.Properties[0].Value -split ':')[0]}},    @{Label='User';Expression={$_.Properties[1].Value}}
-        if ($Events) {
-            $Events | Export-Csv $OutputFile -NoTypeInformation
+        $job = Start-Job -ScriptBlock {
+            param($DC, $StartTime, $MaxEvents)
+            Get-WinEvent -ComputerName $DC -FilterHashtable @{
+                LogName = 'Directory Service';
+                ID = 2889;
+                StartTime = $StartTime
+            } -MaxEvents $MaxEvents
+        } -ArgumentList $DC, $StartTime, $MaxEvents
+
+        $job | Wait-Job -Timeout $Timeout | Out-Null
+
+        if ($job.State -eq 'Running') {
+            Write-Warning "[$($DC)] Get-WinEvent timed out after $($Timeout) seconds."
+            $job | Stop-Job
+            $Events = $null
+        } elseif ($job.State -eq 'Completed') {
+            $Events = $job | Receive-Job
         } else {
-            Write-Host "No LDAP events (EventID 2889) found on $DC."
+             Write-Warning "[$($DC)] Get-WinEvent job failed with state: $($job.State)."
+             $Events = $null
+        }
+        $job | Remove-Job
+
+        if ($Events) {
+            $Events | Select-Object @{Label='Time';Expression={$_.TimeCreated.ToString('g')}},   @{Label='SourceIP';Expression={($_.Properties[0].Value -split ':')[0]}},    @{Label='User';Expression={$_.Properties[1].Value}} | Export-Csv $OutputFile -NoTypeInformation
+        } else {
+            Write-Warning "[$($DC)] No LDAP events (EventID 2889) found or an error occurred."
         }
     }
 }
