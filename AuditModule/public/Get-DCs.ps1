@@ -3,6 +3,22 @@ function Get-DCs {
     [CmdletBinding()]
     param()
 
-    # Retrieve and format DC information
-    return (Get-ADDomainController -Filter * | Select-Object HostName, IsReadOnly, OperatingSystem, IPv4Address, Site | Sort-Object HostName | Format-Table | Out-String).Trim()
+    # Retrieve DC information
+    $DCs = Get-ADDomainController -Filter * | Select-Object HostName, IsReadOnly, OperatingSystem, IPv4Address, Site | Sort-Object HostName
+
+    # Check port 135 reachability for each DC
+    $OutputTable = foreach ($dc in $DCs) {
+        $reachable = Test-NetConnection -ComputerName $dc.HostName -Port 135 -InformationLevel Quiet -ErrorAction SilentlyContinue
+        [PSCustomObject]@{
+            HostName = $dc.HostName
+            IsReadOnly = $dc.IsReadOnly
+            OperatingSystem = $dc.OperatingSystem
+            IPv4Address = $dc.IPv4Address
+            Site = $dc.Site
+            Reachable = $reachable.TcpTestSucceeded
+        }
+    }
+
+    # Output the results in a table format
+    return $OutputTable | Format-Table | Out-String
 }

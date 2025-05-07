@@ -3,7 +3,7 @@ function Export-NTLMEvents {
     param (
         # Define parameters for Audit-NTLM here
         [int]$MaxEvents = 10000,
-        [switch]$AllNTLM # Add this switch to include NTLM V2 events,
+        [switch]$AllNTLM,
         [int]$Timeout = 180
     )
     _AssertAdminPrivileges # Check for admin privileges
