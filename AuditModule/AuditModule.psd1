@@ -5,13 +5,13 @@
     #
 
     RootModule = 'AuditModule.psm1'
-    ModuleVersion = '1.0'
+    ModuleVersion = '0.3.0'
     CompatiblePSEditions = @('Desktop', 'Core')
     GUID = 'c5cc2acf-06ce-4f30-9901-a7dd5d476a13'
     Author = 'abayoumy@outlook.com'
     CompanyName = 'www.abayoumy.tech'
     Copyright = '(c) 2025 abayoumy. All rights reserved.'
-    Description = 'This module contains commands for auditing NTLM and LDAP.'
+    Description = 'This module contains commands for auditing Active Directory.'
     PowerShellVersion = '5.1'
     # Minimum version of the PowerShell engine required by this module.
     # DotNetFrameworkVersion = '4.7.2'
