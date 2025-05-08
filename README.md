@@ -41,7 +41,7 @@ Sets the maximum size for Security and Directory Service event logs on domain co
 - `-Size`: Specifies the maximum log size in GB (Valid: 2, 3, or 4. Default: 2).
 
 ## Usage
-- Download `https://github.com/Aabayoumy/Audit-DS/archive/refs/heads/main.zip` extract and move it to Domain Controller.
+- Download latest release from https://github.com/Aabayoumy/Audit-DS/releases/latest
 - Open PowerShell as Admin and CD to extracted folder.
 - Set execution policy `Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser -Force`
 - `Import-Module -Name .\AuditModule -Force`
