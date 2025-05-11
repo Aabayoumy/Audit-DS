@@ -155,13 +155,12 @@ function Export-ComputersOS {
                 } else {
                     $status = "in support"
                 }
-                ElseIf ($currentDate -gt $mainstreamDate) {
+            }
+            ElseIf ($currentDate -gt $mainstreamDate) {
                 $status = "Out of support"
             } else {
                 $status = "in support"
-            }
-
-            } # If extendedDate is null, status remains "Unknown"
+            } 
         }
         # Create custom object for output
         $outputObject = [PSCustomObject]@{
