@@ -135,7 +135,7 @@ function Export-ComputersOS {
         if ($buildNumber -and $osSupportLookup.ContainsKey($buildNumber)) {
             $eosDate = $osSupportLookup[$buildNumber]
         } elseif ($buildNumber) {
-             Write-Warning "No EOS date found for extracted build number '$buildNumber' on computer '$($computer.Name)' (OS Version: $($computer.OperatingSystemVersion))."
+            Write-Warning "No EOS date found for extracted build number '$buildNumber' on computer '$($computer.Name)' (OS Version: $($computer.OperatingSystemVersion))."
         } # No warning if build number couldn't be extracted, already warned above
 
         # Determine Support Status
@@ -145,27 +145,24 @@ function Export-ComputersOS {
             $supportInfo = $osSupportLookup[$buildNumber]
             $mainstreamDate = $supportInfo.Mainstream
             $extendedDate = $supportInfo.Extended
-
+            # Determine support status based on current date and EOS dates            
             if ($extendedDate -ne $null) {
                 if ($currentDate -gt $extendedDate) {
-                    $status = "end of support"
-                } elseif ($mainstreamDate -ne $null) {
-                    # Both dates are valid
-                    if ($currentDate -gt $mainstreamDate) {
-                        $status = "in extended support"
-                    } else {
-                        $status = "in support"
-                    }
+                    $status = "Out of support"
+                } 
+                elseif ($currentDate -gt $mainstreamDate ) {
+                    $status = "in extended support"
                 } else {
-                    # No valid mainstream date, but extended date is valid and in the future/present
-                     $status = "in support" # Treat as supported until extended date
+                    $status = "in support"
                 }
+            elseif ($currentDate -gt $mainstreamDate) {
+                $status = "Out of support"
+            } else {
+                $status = "in support"
+            }
+
             } # If extendedDate is null, status remains "Unknown"
-
-        } elseif ($buildNumber) {
-            Write-Warning "No support dates found for extracted build number '$buildNumber' on computer '$($computer.Name)' (OS Version: $($computer.OperatingSystemVersion)). Status set to 'Unknown'."
-        } # Status remains "Unknown" if build number extraction failed
-
+        }
         # Create custom object for output
         $outputObject = [PSCustomObject]@{
             Name                     = $computer.Name
