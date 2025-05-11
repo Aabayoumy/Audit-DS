@@ -150,12 +150,12 @@ function Export-ComputersOS {
                 if ($currentDate -gt $extendedDate) {
                     $status = "Out of support"
                 } 
-                elseif ($currentDate -gt $mainstreamDate ) {
+                ElseIf ($currentDate -gt $mainstreamDate ) {
                     $status = "in extended support"
                 } else {
                     $status = "in support"
                 }
-            elseif ($currentDate -gt $mainstreamDate) {
+                ElseIf ($currentDate -gt $mainstreamDate) {
                 $status = "Out of support"
             } else {
                 $status = "in support"
