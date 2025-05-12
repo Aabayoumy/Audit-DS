@@ -3,6 +3,7 @@
 *.bak
 *.tmp
 *.temp
+*.zip
 .DS_Store
 *.vscode/
 _build.ps1
