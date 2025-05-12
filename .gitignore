@@ -5,7 +5,8 @@
 *.temp
 .DS_Store
 *.vscode/
-
+_build.ps1
+Audit-DS.ps1
 
 # Created by https://www.toptal.com/developers/gitignore/api/macos
 # Edit at https://www.toptal.com/developers/gitignore?templates=macos
