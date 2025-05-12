@@ -3,13 +3,14 @@ function Export-LDAPEvents {
     param (
         # Define parameters for Audit-LDAP here
         [int]$MaxEvents = 10000,
-        [int]$Timeout = 180
+        [int]$Timeout = 180,
+        [int]$Days = 7 # Number of days back to limit events
     )
     _AssertAdminPrivileges # Check for admin privileges
     $OutputPath = "$Global:OutputPath\LDAP-$($((Get-Date).ToString('ddMMMyy-HHmm')))\"
     $null = New-Item -Path $OutputPath -ItemType Directory -Force
     $IgnoredDCs =  _GetIgnoredDCs # Load ignored DCs
-    $StartTime = (Get-Date).AddDays(-7) # Limit to the last 7 days
+    $StartTime = (Get-Date).AddDays(-$Days) # Limit to the specified number of days
     foreach ($DC in (Get-ADDomainController -Filter *).HostName | Where-Object { $_ -notin $IgnoredDCs }){
         $OutputFile = "$OutputPath\$($DC).csv"
         Write-Host "[$($DC)] Searching log"

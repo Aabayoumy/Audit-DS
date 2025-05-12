@@ -4,7 +4,8 @@ function Export-NTLMEvents {
         # Define parameters for Audit-NTLM here
         [int]$MaxEvents = 10000,
         [switch]$AllNTLM,
-        [int]$Timeout = 180
+        [int]$Timeout = 180,
+        [int]$Days = 7 # Number of days back to limit events
     )
     _AssertAdminPrivileges # Check for admin privileges
     $OutputPath = "$Global:OutputPath\NTLM-$((Get-Date).ToString('ddMMMyy-HHmm'))\"
@@ -17,7 +18,7 @@ function Export-NTLMEvents {
     foreach ($DC in (Get-ADDomainController -Filter *).HostName | Where-Object { $_ -notin $IgnoredDCs }){
         $OutputFile = "$OutputPath\$($DC).csv"
         Write-Host "[$($DC)] Searching log"
-        $StartTime = (Get-Date).AddDays(-7) # Limit to the last 7 days
+        $StartTime = (Get-Date).AddDays(-$Days) # Limit to the specified number of days
 
         $job = Start-Job -ScriptBlock {
             param($DC, $StartTime, $MaxEvents, $NtlmFilter)
