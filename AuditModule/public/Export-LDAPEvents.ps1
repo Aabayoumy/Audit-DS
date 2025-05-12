@@ -16,11 +16,11 @@ function Export-LDAPEvents {
         Write-Host "[$($DC)] Searching log"
         $job = Start-Job -ScriptBlock {
             param($DC, $StartTime, $MaxEvents)
-            Get-WinEvent -ComputerName $DC -FilterHashtable @{
-                LogName = 'Directory Service';
-                ID = 2889;
-                StartTime = $StartTime
-            } -MaxEvents $MaxEvents
+Get-WinEvent -ComputerName $DC -FilterHashtable @{
+    LogName = 'Directory Service';
+    ID = 2889;
+    StartTime = $StartTime
+} -MaxEvents $MaxEvents | Select-Object @{Label='Time';Expression={$_.TimeCreated.ToString('g')}}, @{Label='SourceIP';Expression={$_.Properties[0].Value}}, @{Label='User';Expression={$_.Properties[1].Value}}
         } -ArgumentList $DC, $StartTime, $MaxEvents
 
         $job | Wait-Job -Timeout $Timeout | Out-Null
@@ -38,10 +38,7 @@ function Export-LDAPEvents {
         $job | Remove-Job
 
         if ($Events) {
-            $Events | ForEach-Object {
-    Write-Host "Event Property Values:"
-    $_.Properties | ForEach-Object { Write-Host $_.Value }
-} | Export-Csv $OutputFile -NoTypeInformation
+            $Events | Export-Csv $OutputFile -NoTypeInformation
         } else {
             Write-Warning "[$($DC)] No LDAP events (EventID 2889) found or an error occurred."
         }
