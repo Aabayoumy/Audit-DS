@@ -38,7 +38,7 @@ function Export-LDAPEvents {
         $job | Remove-Job
 
         if ($Events) {
-            $Events | Export-Csv $OutputFile -NoTypeInformation
+            $Events | Select-Object Time, SourceIP, User | Export-Csv $OutputFile -NoTypeInformation
         } else {
             Write-Warning "[$($DC)] No LDAP events (EventID 2889) found or an error occurred."
         }
