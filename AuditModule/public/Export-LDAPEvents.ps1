@@ -38,7 +38,9 @@ function Export-LDAPEvents {
         $job | Remove-Job
 
         if ($Events) {
-            $Events | Select-Object @{Label='Time';Expression={$_.TimeCreated.ToString('g')}},   @{Label='SourceIP';Expression={$_.Properties[0].Value}},    @{Label='User';Expression={$_.Properties[1].Value}} | Export-Csv $OutputFile -NoTypeInformation
+            $Events | ForEach-Object {
+    Write-Host "Event Properties: $($_.Properties)"
+} | Export-Csv $OutputFile -NoTypeInformation
         } else {
             Write-Warning "[$($DC)] No LDAP events (EventID 2889) found or an error occurred."
         }
