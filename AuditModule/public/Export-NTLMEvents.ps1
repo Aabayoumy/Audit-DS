@@ -29,7 +29,7 @@ function Export-NTLMEvents {
             } -MaxEvents $MaxEvents | Where-Object {
                 $_.Properties[14].Value -in $NtlmFilter # Use the dynamic filter
             } | Select-Object @{Label='Time';Expression={$_.TimeCreated.ToString('g')}},
-            @{Label='UserName';Expression={$_.Properties[5].Value}},
+            @{Label='User';Expression={$_.Properties[5].Value}},
             @{Label='WorkstationName';Expression={$_.Properties[11].Value}},
             @{Label='WorkstationIP';Expression={$_.Properties[18].Value}},
             @{Label='LogonType';Expression={$_.properties[8].value}},
@@ -52,12 +52,12 @@ function Export-NTLMEvents {
         $job | Remove-Job
 
         if ($Events) {
-
             # Filter for NTLM V1 events excluding ANONYMOUS LOGON
             $NtlmV1Events = $Events | Where-Object { $_.LmPackageName -eq 'NTLM V1' -and $_.UserName -ne 'ANONYMOUS LOGON' }
             $NtlmV1Count = $NtlmV1Events.Count
             # Update Write-Host to include the count
             Write-Host "[$($DC)] $NtlmV1Count NTLMv1 Events"
+            $Events | Select-Object Time, WorkstationName, WorkstationIP, User, LmPackageName  | Export-Csv $OutputFile -NoTypeInformation
         } else {
             Write-Warning "[$($DC)] No NTLM events (EventID 4624) found or an error occurred."
         }
