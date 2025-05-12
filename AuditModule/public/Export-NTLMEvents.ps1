@@ -28,7 +28,13 @@ function Export-NTLMEvents {
                 StartTime = $StartTime
             } -MaxEvents $MaxEvents | Where-Object {
                 $_.Properties[14].Value -in $NtlmFilter # Use the dynamic filter
-            }
+            } | Select-Object @{Label='Time';Expression={$_.TimeCreated.ToString('g')}},
+            @{Label='UserName';Expression={$_.Properties[5].Value}},
+            @{Label='WorkstationName';Expression={$_.Properties[11].Value}},
+            @{Label='WorkstationIP';Expression={$_.Properties[18].Value}},
+            @{Label='LogonType';Expression={$_.properties[8].value}},
+            @{Label='LmPackageName';Expression={$_.properties[14].value}},
+            @{Label='ImpersonationLevel';Expression={$_.properties[20].value}}
         } -ArgumentList $DC, $StartTime, $MaxEvents, $NtlmFilter
 
         $job | Wait-Job -Timeout $Timeout | Out-Null
@@ -46,14 +52,6 @@ function Export-NTLMEvents {
         $job | Remove-Job
 
         if ($Events) {
-            $Events | Select-Object `
-            @{Label='Time';Expression={$_.TimeCreated.ToString('g')}},
-            @{Label='UserName';Expression={$_.Properties[5].Value}},
-            @{Label='WorkstationName';Expression={$_.Properties[11].Value}},
-            @{Label='WorkstationIP';Expression={$_.Properties[18].Value}},
-            @{Label='LogonType';Expression={$_.properties[8].value}},
-            @{Label='LmPackageName';Expression={$_.properties[14].value}},
-            @{Label='ImpersonationLevel';Expression={$_.properties[20].value}} | Export-Csv $OutputFile -NoTypeInformation
 
             # Filter for NTLM V1 events excluding ANONYMOUS LOGON
             $NtlmV1Events = $Events | Where-Object { $_.LmPackageName -eq 'NTLM V1' -and $_.UserName -ne 'ANONYMOUS LOGON' }
@@ -64,4 +62,5 @@ function Export-NTLMEvents {
             Write-Warning "[$($DC)] No NTLM events (EventID 4624) found or an error occurred."
         }
     }
+    Start-Process "$($OutputPath)"
 }

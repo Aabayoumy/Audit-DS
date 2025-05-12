@@ -49,4 +49,5 @@ function Export-LDAPEvents {
         }
     }
     $SourceIPs | Sort-Object -Unique  | Out-File "$OutputPath\SourceIPs.txt" -Encoding UTF8 # Export unique SourceIP values to SourceIPs.txt
+        Start-Process "$($OutputPath)"
 }
