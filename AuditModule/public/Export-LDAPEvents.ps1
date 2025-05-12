@@ -11,6 +11,7 @@ function Export-LDAPEvents {
     $null = New-Item -Path $OutputPath -ItemType Directory -Force
     $IgnoredDCs =  _GetIgnoredDCs # Load ignored DCs
     $StartTime = (Get-Date).AddDays(-$Days) # Limit to the specified number of days
+    $SourceIPs = @() # Initialize an array to collect unique SourceIP values
     foreach ($DC in (Get-ADDomainController -Filter *).HostName | Where-Object { $_ -notin $IgnoredDCs }){
         $OutputFile = "$OutputPath\$($DC).csv"
         Write-Host "[$($DC)] Searching log"
@@ -32,8 +33,12 @@ function Export-LDAPEvents {
         } elseif ($job.State -eq 'Completed') {
             $Events = $job | Receive-Job
         } else {
-             Write-Warning "[$($DC)] Get-WinEvent job failed with state: $($job.State)."
-             $Events = $null
+            Write-Warning "[$($DC)] Get-WinEvent job failed with state: $($job.State)."
+            $Events = $null
+        }
+
+        if ($Events) {
+            $SourceIPs += $Events | Select-Object -ExpandProperty SourceIP | Sort-Object -Unique # Collect unique SourceIP values
         }
         $job | Remove-Job
 
@@ -43,4 +48,5 @@ function Export-LDAPEvents {
             Write-Warning "[$($DC)] No LDAP events (EventID 2889) found or an error occurred."
         }
     }
+    $SourceIPs | Sort-Object -Unique  | Out-File "$OutputPath\SourceIPs.txt" -Encoding UTF8 # Export unique SourceIP values to SourceIPs.txt
 }
