@@ -22,11 +22,13 @@ Exports administrative users based on group membership and adminCount.
 ### Export-LDAPEvents
 Exports LDAP events from domain controllers.
 - `-MaxEvents`: Maximum number of events to retrieve (default: 10000).
+- `-Days`: Number of days back from the current date to limit events (default: 7).
 
 ### Export-NTLMEvents
 Exports NTLM authentication events from domain controllers.
 - `-MaxEvents`: Maximum number of events to retrieve (default: 10000).
 - `-AllNTLM`: Includes NTLM V2 events (default: only NTLM V1).
+- `-Days`: Number of days back from the current date to limit events (default: 7).
 
 ### Export-ComputersOS
 Exports computer OS details and end-of-support status from Active Directory.
