@@ -1,16 +1,12 @@
-# TODO:
-# - separate each function on separate file under public folder (Done)
-# - add help to each function (Pending - outside scope of current request)
-
-
-# Create global variable OutputPath
-$Global:DomainName = (Get-ADDomain).Name
-$Global:OutputPath = "c:\$DomainName"
+# This module is designed to be used with PowerShell 5.1 and later.
 
 # Get the directory of the current script (.psm1 file)
 $PSScriptRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
 
-Write-Host $PSScriptRoot 
+# Dot-source the variables file
+. (Join-Path -Path $PSScriptRoot -ChildPath "public\Variables.ps1")
+
+# Write-Host $PSScriptRoot 
 # Define paths to the private and public function directories
 $PrivateFunctionsPath = Join-Path -Path $PSScriptRoot -ChildPath "private"
 $PublicFunctionsPath = Join-Path -Path $PSScriptRoot -ChildPath "public"
