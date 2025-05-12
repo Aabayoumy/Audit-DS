@@ -5,7 +5,7 @@
     #
 
     RootModule = 'AuditModule.psm1'
-    ModuleVersion = '0.3.1'
+    ModuleVersion = 'latest'
     CompatiblePSEditions = @('Desktop', 'Core')
     GUID = 'c5cc2acf-06ce-4f30-9901-a7dd5d476a13'
     Author = 'abayoumy@outlook.com'
