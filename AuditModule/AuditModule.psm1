@@ -3,9 +3,6 @@
 # Get the directory of the current script (.psm1 file)
 $PSScriptRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
 
-# Dot-source the variables file
-. (Join-Path -Path $PSScriptRoot -ChildPath "public\Variables.ps1")
-
 # Write-Host $PSScriptRoot 
 # Define paths to the private and public function directories
 $PrivateFunctionsPath = Join-Path -Path $PSScriptRoot -ChildPath "private"
