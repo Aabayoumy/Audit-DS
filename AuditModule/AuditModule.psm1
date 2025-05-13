@@ -1,8 +1,5 @@
 # This module is designed to be used with PowerShell 5.1 and later.
 
-# Get the directory of the current script (.psm1 file)
-$PSScriptRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
-
 # Write-Host $PSScriptRoot 
 # Define paths to the private and public function directories
 $PrivateFunctionsPath = Join-Path -Path $PSScriptRoot -ChildPath "private"
