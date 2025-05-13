@@ -50,8 +50,8 @@ function Set-LogSize {
         try {
             # Ensure the private function is available in the session state
             if (-not (Get-Command _GetIgnoredDCs -ErrorAction SilentlyContinue)) {
-                 Write-Error "_GetIgnoredDCs function not found. Ensure the module is loaded correctly."
-                 return
+                Write-Error "_GetIgnoredDCs function not found. Ensure the module is loaded correctly."
+                return
             }
             $ignoredDCs = _GetIgnoredDCs # Calling the private function
             Write-Verbose "Successfully retrieved ignored DCs: $($ignoredDCs -join ', ')"
@@ -62,19 +62,14 @@ function Set-LogSize {
             return
         }
 
-        # Get all Domain Controllers
+        # Get all Domain Controllers using Get-ADDomainController
         try {
-            # Ensure the Get-DCs function is available
-             if (-not (Get-Command Get-DCs -ErrorAction SilentlyContinue)) {
-                 Write-Error "Get-DCs function not found. Ensure the module is loaded correctly."
-                 return
-            }
-            # Assuming Get-DCs function exists and returns computer names or objects with a Name property
-            $allDCs = Get-DCs | Select-Object -ExpandProperty HostName # Adjust property name if needed
-            Write-Verbose "Successfully retrieved all DCs: $($allDCs -join ', ')"
+            # Using Get-ADDomainController with a filter to get all DCs
+            $allDCs = Get-ADDomainController -Filter * | Select-Object -ExpandProperty Name
+            Write-Verbose "Successfully retrieved all DCs using Get-ADDomainController: $($allDCs -join ', ')"
         }
         catch {
-            Write-Error "Failed to retrieve Domain Controllers using Get-DCs. Ensure the Active Directory module is available and you have permissions. Error: $($_.Exception.Message)"
+            Write-Error "Failed to retrieve Domain Controllers using Get-ADDomainController. Ensure the Active Directory module is available and you have permissions. Error: $($_.Exception.Message)"
             return
         }
 
