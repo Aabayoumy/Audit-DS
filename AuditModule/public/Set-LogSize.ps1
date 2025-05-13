@@ -102,17 +102,11 @@ function Set-LogSize {
 
                     # Set Security log size
                     Write-Verbose "Setting Security log max size on $dc to $($Size)GB"
-                    Invoke-Command -ComputerName $dc -ScriptBlock {
-                        param($logName, $maxSize)
-                        Limit-EventLog -LogName $logName -MaximumSize $maxSize -ErrorAction Stop
-                    } -ArgumentList "Security", $maxSizeBytes
+                    Limit-EventLog -LogName Security -MaximumSize $maxSizeBytes -ComputerName $dc -ErrorAction Stop
 
                     # Set Directory Service log size
                     Write-Verbose "Setting Directory Service log max size on $dc to $($Size)GB"
-                    Invoke-Command -ComputerName $dc -ScriptBlock {
-                        param($logName, $maxSize)
-                        Limit-EventLog -LogName $logName -MaximumSize $maxSize -ErrorAction Stop
-                    } -ArgumentList "Directory Service", $maxSizeBytes
+                    Limit-EventLog -LogName 'Directory Service' -MaximumSize $maxSizeBytes -ComputerName $dc -ErrorAction Stop
 
                     # Restart EventLog service
                     Write-Verbose "Restarting EventLog service on $dc"
