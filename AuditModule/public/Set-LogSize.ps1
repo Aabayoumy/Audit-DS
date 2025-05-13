@@ -108,11 +108,62 @@ function Set-LogSize {
                     Write-Verbose "Setting Directory Service log max size on $dc to $($Size)GB"
                     Limit-EventLog -LogName 'Directory Service' -MaximumSize $maxSizeBytes -ComputerName $dc -ErrorAction Stop
 
-                    # Restart EventLog service
-                    Write-Verbose "Restarting EventLog service on $dc"
-                    Restart-Service -Name EventLog -ComputerName $dc -Force -ErrorAction Stop
+                    # Restart EventLog service using WMI
+                    Write-Verbose "Attempting to restart EventLog service on ${dc} using WMI..."
+                    $service = Get-WmiObject -Class Win32_Service -ComputerName $dc -Filter "Name='EventLog'" -ErrorAction Stop
 
-                    Write-Host "Successfully updated log sizes and restarted EventLog service on $dc."
+                    if ($null -eq $service) {
+                        throw "EventLog service not found on ${dc}."
+                    }
+
+                    Write-Verbose "Current EventLog service state on ${dc}: $($service.State)"
+
+                    if ($service.State -ne 'Stopped') {
+                        Write-Verbose "Stopping EventLog service on ${dc}..."
+                        $stopResult = $service.StopService()
+                        if ($stopResult.ReturnValue -ne 0 -and $stopResult.ReturnValue -ne 5) { # 0 = Success, 5 = Service Already Stopped
+                            throw "Failed to send stop command to EventLog service on ${dc}. WMI ReturnValue: $($stopResult.ReturnValue)"
+                        }
+
+                        # Wait for the service to stop
+                        $timeoutSeconds = 30
+                        $stopWatch = [System.Diagnostics.Stopwatch]::StartNew()
+                        while ($service.State -ne 'Stopped' -and $stopWatch.Elapsed.TotalSeconds -lt $timeoutSeconds) {
+                            Start-Sleep -Seconds 1
+                            $service = Get-WmiObject -Class Win32_Service -ComputerName $dc -Filter "Name='EventLog'" -ErrorAction Stop # Refresh service state
+                            Write-Verbose "Waiting for EventLog service to stop on ${dc}... Current state: $($service.State)"
+                        }
+                        $stopWatch.Stop()
+
+                        if ($service.State -ne 'Stopped') {
+                            throw "EventLog service on ${dc} did not stop within $timeoutSeconds seconds. Current state: $($service.State)"
+                        }
+                        Write-Verbose "EventLog service stopped on ${dc}."
+                    } else {
+                        Write-Verbose "EventLog service on ${dc} is already stopped."
+                    }
+
+                    Write-Verbose "Starting EventLog service on ${dc}..."
+                    $startResult = $service.StartService()
+                    if ($startResult.ReturnValue -ne 0 -and $startResult.ReturnValue -ne 10) { # 0 = Success, 10 = Service Already Running (should not happen if stopped properly)
+                        throw "Failed to send start command to EventLog service on ${dc}. WMI ReturnValue: $($startResult.ReturnValue)"
+                    }
+                    
+                    # Wait a moment for the service to transition to running
+                    Start-Sleep -Seconds 2
+                    $service = Get-WmiObject -Class Win32_Service -ComputerName $dc -Filter "Name='EventLog'" -ErrorAction Stop # Refresh service state
+                    if ($service.State -ne 'Running') {
+                         # Try one more time after a longer pause if not running
+                         Write-Verbose "EventLog service on ${dc} not immediately running. State: $($service.State). Waiting a bit longer..."
+                         Start-Sleep -Seconds 5
+                         $service = Get-WmiObject -Class Win32_Service -ComputerName $dc -Filter "Name='EventLog'" -ErrorAction Stop
+                         if ($service.State -ne 'Running') {
+                            throw "EventLog service on ${dc} did not transition to 'Running' state. Current state: $($service.State)"
+                         }
+                    }
+                    Write-Verbose "EventLog service started on ${dc}. Current state: $($service.State)"
+
+                    Write-Host "Successfully updated log sizes and restarted EventLog service on ${dc}."
                 }
                 catch {
                     Write-Error "Failed to process $dc. Error: $($_.Exception.Message)"
