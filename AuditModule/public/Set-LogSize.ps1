@@ -108,8 +108,8 @@ function Set-LogSize {
                     Write-Verbose "Setting Directory Service log max size on $dc to $($Size)GB"
                     Limit-EventLog -LogName 'Directory Service' -MaximumSize $maxSizeBytes -ComputerName $dc -ErrorAction Stop
 
-                    Write-Host "Successfully updated log sizes on ${dc}."
-                    Write-Warning "The EventLog service on ${dc} must be restarted for the new log sizes to take effect."
+                    Write-Host -ForegroundColor Green "Successfully updated log sizes on ${dc}."
+                    Write-Host -ForegroundColor Green "The EventLog service on ${dc} must be restarted for the new log sizes to take effect."
                 }
                 catch {
                     Write-Error "Failed to process $dc. Error: $($_.Exception.Message)"
