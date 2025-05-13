@@ -3,7 +3,7 @@
 Sets the maximum size for Security and Directory Service event logs on specified Domain Controllers.
 
 .DESCRIPTION
-This function retrieves all Domain Controllers (DCs) in the current domain, filters out any DCs listed in the ignored DCs configuration, and then sets the maximum size for the Security and 'Directory Service' event logs on the remaining DCs using the Limit-EventLog cmdlet. It defaults to 2GB but can be set to 2, 3, or 4 GB using the -Size parameter. After setting the limits, it restarts the EventLog service on each targeted DC. Requires administrative privileges on the target DCs.
+This function retrieves all Domain Controllers (DCs) in the current domain, filters out any DCs listed in the ignored DCs configuration, and then sets the maximum size for the Security and 'Directory Service' event logs on the remaining DCs using the Limit-EventLog cmdlet. It defaults to 2GB but can be set to 2, 3, or 4 GB using the -Size parameter. After setting the limits, it displays a warning that the EventLog service needs to be restarted for the changes to take effect. Requires administrative privileges on the target DCs.
 
 .PARAMETER Size
 Specifies the maximum size for the event logs in Gigabytes (GB).
@@ -11,15 +11,15 @@ Valid values are 2, 3, or 4. Defaults to 2.
 
 .EXAMPLE
 PS C:\> Set-LogSize
-Sets the Security and Directory Service log sizes to 2GB on all applicable Domain Controllers and restarts the EventLog service.
+Sets the Security and Directory Service log sizes to 2GB on all applicable Domain Controllers and warns the user to restart the EventLog service.
 
 .EXAMPLE
 PS C:\> Set-LogSize -Size 4
-Sets the Security and Directory Service log sizes to 4GB on all applicable Domain Controllers and restarts the EventLog service.
+Sets the Security and Directory Service log sizes to 4GB on all applicable Domain Controllers and warns the user to restart the EventLog service.
 
 .EXAMPLE
 PS C:\> Set-LogSize -Verbose
-Sets the log sizes to the default 2GB and provides detailed output about the operations being performed on each DC.
+Sets the log sizes to the default 2GB, provides detailed output about the operations being performed on each DC, and warns the user to restart the EventLog service.
 
 .NOTES
 - Requires the Active Directory PowerShell module.
@@ -93,69 +93,13 @@ function Set-LogSize {
     }
 
     Process {
-        # Function to get service state using sc.exe
-        Function Get-ServiceStateSC {
-            param ($ComputerName, $ServiceName)
-            $scOutput = ""
-            $scError = ""
-            $exitCode = -1
-            # Generate unique temp file names
-            $randomId = Get-Random
-            $tempOutputFile = Join-Path $env:TEMP "sc_out_$($PID)_$($randomId).txt"
-            $tempErrorFile = Join-Path $env:TEMP "sc_err_$($PID)_$($randomId).txt"
-
-            try {
-                # Ensure temp files don't exist from a previous failed run
-                If (Test-Path $tempOutputFile) { Remove-Item $tempOutputFile -Force -ErrorAction SilentlyContinue }
-                If (Test-Path $tempErrorFile) { Remove-Item $tempErrorFile -Force -ErrorAction SilentlyContinue }
-
-                $process = Start-Process sc.exe -ArgumentList "\\$ComputerName", "query", $ServiceName -Wait -NoNewWindow -PassThru -RedirectStandardOutput $tempOutputFile -RedirectStandardError $tempErrorFile
-                $exitCode = $process.ExitCode
-                
-                if (Test-Path $tempOutputFile) {
-                    $scOutput = Get-Content $tempOutputFile -Raw -ErrorAction SilentlyContinue
-                }
-                if (Test-Path $tempErrorFile) {
-                    $scError = Get-Content $tempErrorFile -Raw -ErrorAction SilentlyContinue
-                }
-            } catch {
-                Write-Verbose "Exception running sc.exe query for $($ServiceName) on $($ComputerName): ${$_.Exception.Message}"
-                return "ErrorInExecution"
-            } finally {
-                If (Test-Path $tempOutputFile) { Remove-Item $tempOutputFile -Force -ErrorAction SilentlyContinue }
-                If (Test-Path $tempErrorFile) { Remove-Item $tempErrorFile -Force -ErrorAction SilentlyContinue }
-            }
-
-            if ($exitCode -ne 0) {
-                if ($scOutput -match "FAILED 1060" -or $scError -match "FAILED 1060") { # Service does not exist
-                    Write-Verbose "Service $ServiceName not found on $ComputerName (SC FAILED 1060). Output: $scOutput Error: $scError"
-                    return "NotFound"
-                }
-                if ($scError -match "FAILED 1722" -or $scOutput -match "FAILED 1722" -or $scError -match "RPC server is unavailable") { # The RPC server is unavailable.
-                     Write-Verbose "RPC server unavailable for $ServiceName on $ComputerName (SC FAILED 1722 or similar). Output: $scOutput Error: $scError"
-                     return "RpcError"
-                }
-                Write-Verbose "sc.exe query for $ServiceName on $ComputerName exited with code $exitCode. Output: $scOutput Error: $scError"
-                return "QueryError" 
-            }
-            
-            if ($scOutput -match "STATE\s+:\s+\d+\s+RUNNING") { return "Running" }
-            if ($scOutput -match "STATE\s+:\s+\d+\s+STOPPED") { return "Stopped" }
-            if ($scOutput -match "STATE\s+:\s+\d+\s+START_PENDING") { return "StartPending" }
-            if ($scOutput -match "STATE\s+:\s+\d+\s+STOP_PENDING") { return "StopPending" }
-            
-            Write-Verbose "Could not determine service state for $ServiceName on $ComputerName from sc.exe output: $scOutput"
-            return "Unknown"
-        }
-
         foreach ($dc in $targetDCs) {
             Write-Verbose "Processing Domain Controller: $dc"
 
-            if ($PSCmdlet.ShouldProcess($dc, "Set Security & Directory Service Log Max Size to $($Size)GB and Restart EventLog Service")) {
+            if ($PSCmdlet.ShouldProcess($dc, "Set Security & Directory Service Log Max Size to $($Size)GB")) {
                 try {
-                    Write-Verbose "Attempting to set log sizes and restart EventLog service on $dc..."
-                    $stoppedDependentServices = [System.Collections.Generic.List[string]]::new() # To track successfully stopped dependent services
-
+                    Write-Verbose "Attempting to set log sizes on $dc..."
+                    
                     # Set Security log size
                     Write-Verbose "Setting Security log max size on $dc to $($Size)GB"
                     Limit-EventLog -LogName Security -MaximumSize $maxSizeBytes -ComputerName $dc -ErrorAction Stop
@@ -164,201 +108,16 @@ function Set-LogSize {
                     Write-Verbose "Setting Directory Service log max size on $dc to $($Size)GB"
                     Limit-EventLog -LogName 'Directory Service' -MaximumSize $maxSizeBytes -ComputerName $dc -ErrorAction Stop
 
-                    # Restart EventLog service using sc.exe
-                    Write-Verbose "Attempting to restart EventLog service on ${dc} using sc.exe..."
-                    $timeoutSeconds = 90 # Increased timeout for sc.exe operations, especially remote
-                    $sleepInterval = 3   # Interval between state checks in seconds
-
-                    # Check initial state
-                    $currentState = Get-ServiceStateSC -ComputerName $dc -ServiceName 'EventLog'
-                    Write-Verbose "Initial EventLog service state on ${dc}: $currentState"
-
-                    if ($currentState -eq "NotFound") {
-                        throw "EventLog service not found on ${dc} (queried via sc.exe)."
-                    }
-                    if ($currentState -eq "RpcError") {
-                        throw "RPC error when querying EventLog service on ${dc}. The DC might be offline, firewall blocking RPC, or RPC services not running."
-                    }
-                    if ($currentState -eq "ErrorInExecution" -or $currentState -eq "QueryError") {
-                        throw "Failed to query initial EventLog service state on ${dc} using sc.exe. State: $currentState"
-                    }
-                    
-                    # Stop the service if it's running or in a pending state
-                    if ($currentState -eq 'Running' -or $currentState -eq 'StartPending' -or $currentState -eq 'StopPending') {
-                        Write-Verbose "Attempting to stop EventLog service on ${dc}..."
-                        $process = Start-Process sc.exe -ArgumentList "\\$dc", "stop", "EventLog" -Wait -NoNewWindow -PassThru -ErrorAction SilentlyContinue
-                        $scStopExitCode = $process.ExitCode
-
-                        if ($scStopExitCode -eq 0 -or $scStopExitCode -eq 1062) {
-                            Write-Verbose "sc.exe stop EventLog command on ${dc} successful or service already stopped. ExitCode: $scStopExitCode"
-                        } elseif ($scStopExitCode -eq 1051) { # Dependent services running
-                            Write-Warning "EventLog stop on ${dc} failed with 1051 (dependent services running). Attempting to stop dependent services first."
-                            try {
-                                $dependentServices = Get-Service -ComputerName $dc -Name EventLog -DependentServices -ErrorAction Stop
-                                if ($dependentServices.Count -gt 0) {
-                                    Write-Verbose "Found dependent services for EventLog on $dc: $($dependentServices.Name -join ', ')"
-                                    foreach ($depSvc in $dependentServices) {
-                                        $depSvcName = $depSvc.Name
-                                        Write-Verbose "Checking state of dependent service $depSvcName on $dc..."
-                                        $depState = Get-ServiceStateSC -ComputerName $dc -ServiceName $depSvcName
-                                        Write-Verbose "State of $depSvcName on $dc: $depState"
-                                        if ($depState -eq 'Running' -or $depState -eq 'StartPending' -or $depState -eq 'StopPending') {
-                                            Write-Verbose "Attempting to stop dependent service $depSvcName on $dc..."
-                                            $procDepStop = Start-Process sc.exe -ArgumentList "\\$dc", "stop", $depSvcName -Wait -NoNewWindow -PassThru -ErrorAction SilentlyContinue
-                                            $depStopExitCode = $procDepStop.ExitCode
-                                            if ($depStopExitCode -eq 0 -or $depStopExitCode -eq 1062) {
-                                                Write-Verbose "sc.exe stop $depSvcName command on $dc sent. ExitCode: $depStopExitCode. Waiting for it to stop..."
-                                                $depStopWatch = [System.Diagnostics.Stopwatch]::StartNew()
-                                                $currentDepState = Get-ServiceStateSC -ComputerName $dc -ServiceName $depSvcName
-                                                while ($currentDepState -ne 'Stopped' -and $depStopWatch.Elapsed.TotalSeconds -lt $timeoutSeconds) {
-                                                    if ($currentDepState -in @("NotFound", "RpcError", "ErrorInExecution", "QueryError")) {
-                                                        Write-Warning "Error querying state of $depSvcName on $dc while waiting for stop: $currentDepState"
-                                                        break # Break from while loop
-                                                    }
-                                                    Start-Sleep -Seconds $sleepInterval
-                                                    $currentDepState = Get-ServiceStateSC -ComputerName $dc -ServiceName $depSvcName
-                                                    Write-Verbose "Waiting for $depSvcName to stop... Current state: $currentDepState (Elapsed: $($depStopWatch.Elapsed.ToString('hh\:mm\:ss')))"
-                                                }
-                                                $depStopWatch.Stop()
-                                                if ($currentDepState -eq 'Stopped') {
-                                                    Write-Verbose "Dependent service $depSvcName stopped successfully on $dc."
-                                                    $stoppedDependentServices.Add($depSvcName) # Track successfully stopped service
-                                                } else {
-                                                    Write-Warning "Dependent service $depSvcName on $dc did not stop within $timeoutSeconds seconds. Final state: $currentDepState. sc.exe exit code: $depStopExitCode"
-                                                }
-                                            } else {
-                                                Write-Warning "Failed to stop dependent service $depSvcName on $dc. sc.exe stop exit code: $depStopExitCode"
-                                            }
-                                        } elseif ($depState -eq 'Stopped') {
-                                            Write-Verbose "Dependent service $depSvcName on $dc is already stopped. Adding to list for restart."
-                                            $stoppedDependentServices.Add($depSvcName) # Also track if it was a dependency and already stopped
-                                        } else {
-                                            Write-Verbose "Dependent service $depSvcName on $dc is in state '$depState', not attempting to stop."
-                                        }
-                                    }
-                                } else {
-                                    Write-Verbose "No running dependent services found for EventLog on $dc that require stopping, or Get-Service found no dependents."
-                                }
-
-                                # Retry stopping EventLog service
-                                Write-Verbose "Retrying to stop EventLog service on ${dc} after handling dependents..."
-                                $process = Start-Process sc.exe -ArgumentList "\\$dc", "stop", "EventLog" -Wait -NoNewWindow -PassThru -ErrorAction SilentlyContinue
-                                $scStopExitCode = $process.ExitCode
-                                if ($scStopExitCode -ne 0 -and $scStopExitCode -ne 1062) {
-                                    throw "EventLog stop on ${dc} failed again with exit code $scStopExitCode even after attempting to stop dependent services."
-                                }
-                                Write-Verbose "sc.exe stop EventLog command on ${dc} successful after handling dependents. ExitCode: $scStopExitCode"
-                            } catch {
-                                throw "An error occurred while managing dependent services for EventLog on ${dc}: $($_.Exception.Message)"
-                            }
-                        } else { # Other non-zero, non-1062, non-1051 exit codes for the initial EventLog stop attempt
-                            throw "sc.exe stop EventLog on ${dc} failed with exit code $scStopExitCode. Check permissions or sc.exe output manually if needed."
-                        }
-                        
-                        Write-Verbose "Waiting for EventLog service to stop on ${dc}..."
-                        $stopWatch = [System.Diagnostics.Stopwatch]::StartNew()
-                        # Refresh state immediately after sending command before loop
-                        $currentState = Get-ServiceStateSC -ComputerName $dc -ServiceName 'EventLog' 
-                        while ($currentState -ne 'Stopped' -and $stopWatch.Elapsed.TotalSeconds -lt $timeoutSeconds) {
-                            if ($currentState -eq "NotFound" -or $currentState -eq "RpcError" -or $currentState -eq "ErrorInExecution" -or $currentState -eq "QueryError") {
-                                throw "Error querying EventLog service state on ${dc} while waiting for stop: $currentState. Last sc.exe stop exit code: $scStopExitCode"
-                            }
-                            Start-Sleep -Seconds $sleepInterval
-                            $currentState = Get-ServiceStateSC -ComputerName $dc -ServiceName 'EventLog'
-                            Write-Verbose "Waiting for stop... Current state: $currentState (Elapsed: $($stopWatch.Elapsed.ToString('hh\:mm\:ss')))"
-                        }
-                        $stopWatch.Stop()
-
-                        if ($currentState -ne 'Stopped') {
-                            throw "EventLog service on ${dc} did not stop within $timeoutSeconds seconds. Final queried state: $currentState. Last sc.exe stop exit code: $scStopExitCode"
-                        }
-                        Write-Verbose "EventLog service confirmed stopped on ${dc}."
-                    } else {
-                        Write-Verbose "EventLog service on ${dc} is already stopped or in a state that doesn't require stopping ($currentState)."
-                    }
-
-                    # Start the service
-                    Write-Verbose "Attempting to start EventLog service on ${dc}..."
-                    $process = Start-Process sc.exe -ArgumentList "\\$dc", "start", "EventLog" -Wait -NoNewWindow -PassThru
-                    $scStartExitCode = $process.ExitCode
-                    
-                    # Exit code 0: Success.
-                    # Exit code 1056: "An instance of the service is already running."
-                    if ($scStartExitCode -ne 0 -and $scStartExitCode -ne 1056) {
-                        throw "sc.exe start EventLog on ${dc} failed with exit code $scStartExitCode. Check permissions or sc.exe output manually if needed."
-                    }
-                    Write-Verbose "sc.exe start command sent to EventLog on ${dc} (ExitCode: $scStartExitCode)."
-
-                    Write-Verbose "Waiting for EventLog service to start on ${dc}..."
-                    $stopWatch = [System.Diagnostics.Stopwatch]::StartNew()
-                     # Refresh state immediately after sending command before loop
-                    $currentState = Get-ServiceStateSC -ComputerName $dc -ServiceName 'EventLog'
-                    while ($currentState -ne 'Running' -and $stopWatch.Elapsed.TotalSeconds -lt $timeoutSeconds) {
-                        if ($currentState -eq "NotFound" -or $currentState -eq "RpcError" -or $currentState -eq "ErrorInExecution" -or $currentState -eq "QueryError") {
-                            throw "Error querying EventLog service state on ${dc} while waiting for start: $currentState. Last sc.exe start exit code: $scStartExitCode"
-                        }
-                        if ($currentState -eq 'Stopped' -and $stopWatch.Elapsed.TotalSeconds -gt ($timeoutSeconds / 2)) {
-                            Write-Warning "EventLog service on $dc still reported as 'Stopped' after $($stopWatch.Elapsed.ToString('hh\:mm\:ss')) of attempting start. Last sc.exe start exit code: $scStartExitCode"
-                        }
-                        Start-Sleep -Seconds $sleepInterval
-                        $currentState = Get-ServiceStateSC -ComputerName $dc -ServiceName 'EventLog'
-                        Write-Verbose "Waiting for start... Current state: $currentState (Elapsed: $($stopWatch.Elapsed.ToString('hh\:mm\:ss')))"
-                    }
-                    $stopWatch.Stop()
-
-                    if ($currentState -ne 'Running') {
-                        throw "EventLog service on ${dc} did not start within $timeoutSeconds seconds. Final queried state: $currentState. Last sc.exe start exit code: $scStartExitCode"
-                    }
-                    Write-Verbose "EventLog service confirmed running on ${dc}."
-
-                    # Restart dependent services that were stopped
-                    if ($stoppedDependentServices.Count -gt 0) {
-                        Write-Verbose "Attempting to restart previously stopped/managed dependent services on ${dc}: $($stoppedDependentServices -join ', ')"
-                        foreach ($depSvcNameToRestart in $stoppedDependentServices) {
-                            Write-Verbose "Attempting to start dependent service $depSvcNameToRestart on ${dc}..."
-                            $depStartState = Get-ServiceStateSC -ComputerName $dc -ServiceName $depSvcNameToRestart
-                            if ($depStartState -eq 'Stopped') {
-                                $procDepStart = Start-Process sc.exe -ArgumentList "\\$dc", "start", $depSvcNameToRestart -Wait -NoNewWindow -PassThru -ErrorAction SilentlyContinue
-                                $depStartExitCode = $procDepStart.ExitCode
-                                if ($depStartExitCode -eq 0 -or $depStartExitCode -eq 1056) { # 1056 = already running
-                                    Write-Verbose "sc.exe start $depSvcNameToRestart command on ${dc} sent. ExitCode: $depStartExitCode. Waiting for it to run..."
-                                    $depStartWatch = [System.Diagnostics.Stopwatch]::StartNew()
-                                    $currentDepState = Get-ServiceStateSC -ComputerName $dc -ServiceName $depSvcNameToRestart
-                                    while ($currentDepState -ne 'Running' -and $depStartWatch.Elapsed.TotalSeconds -lt $timeoutSeconds) {
-                                        if ($currentDepState -in @("NotFound", "RpcError", "ErrorInExecution", "QueryError")) {
-                                            Write-Warning "Error querying state of $depSvcNameToRestart on $dc while waiting for start: $currentDepState"
-                                            break # Break from while loop
-                                        }
-                                        Start-Sleep -Seconds $sleepInterval
-                                        $currentDepState = Get-ServiceStateSC -ComputerName $dc -ServiceName $depSvcNameToRestart
-                                        Write-Verbose "Waiting for $depSvcNameToRestart to start... Current state: $currentDepState (Elapsed: $($depStartWatch.Elapsed.ToString('hh\:mm\:ss')))"
-                                    }
-                                    $depStartWatch.Stop()
-                                    if ($currentDepState -eq 'Running') {
-                                        Write-Verbose "Dependent service $depSvcNameToRestart started successfully on ${dc}."
-                                    } else {
-                                        Write-Warning "Dependent service $depSvcNameToRestart on ${dc} did not start within $timeoutSeconds seconds. Final state: $currentDepState. sc.exe exit code: $depStartExitCode"
-                                    }
-                                } else {
-                                    Write-Warning "Failed to start dependent service $depSvcNameToRestart on ${dc}. sc.exe start exit code: $depStartExitCode"
-                                }
-                            } elseif ($depStartState -eq 'Running') {
-                                Write-Verbose "Dependent service $depSvcNameToRestart on ${dc} is already running."
-                            } else {
-                                Write-Warning "Dependent service $depSvcNameToRestart on ${dc} is in state '$depStartState', not attempting to start."
-                            }
-                        }
-                    }
-
-                    Write-Host "Successfully updated log sizes and restarted EventLog service (and managed dependents) on ${dc}."
+                    Write-Host "Successfully updated log sizes on ${dc}."
+                    Write-Warning "The EventLog service on ${dc} must be restarted for the new log sizes to take effect."
                 }
                 catch {
                     Write-Error "Failed to process $dc. Error: $($_.Exception.Message)"
-                    # Continue to the next DC, as the original script did
+                    # Continue to the next DC
                 }
             }
             else {
-                 Write-Warning "Skipped processing $dc due to -WhatIf parameter or user cancellation."
+                Write-Warning "Skipped processing $dc due to -WhatIf parameter or user cancellation."
             }
         }
     }
