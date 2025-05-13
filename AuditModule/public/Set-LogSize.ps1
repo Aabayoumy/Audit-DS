@@ -70,7 +70,7 @@ function Set-LogSize {
                  return
             }
             # Assuming Get-DCs function exists and returns computer names or objects with a Name property
-            $allDCs = Get-DCs | Select-Object -ExpandProperty Name # Adjust property name if needed
+            $allDCs = Get-DCs | Select-Object -ExpandProperty HostName # Adjust property name if needed
             Write-Verbose "Successfully retrieved all DCs: $($allDCs -join ', ')"
         }
         catch {
