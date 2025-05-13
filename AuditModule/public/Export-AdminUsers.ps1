@@ -1,10 +1,21 @@
 # Function to export administrative users based on group membership and adminCount
+# Function to export administrative users based on group membership and adminCount
 function Export-AdminUsers {
     [CmdletBinding()]
     param(
         [Parameter(Mandatory=$false, HelpMessage="Path to export the CSV file.")]
-        [string]$OutputPath
+        [string]$OutputPath,
+        [switch]$Help,
+        [switch]$h
     )
+
+    # Check for help parameters or any other parameters
+    if ($Help -or $h -or ($Args.Count -gt 0 -and $Args[0] -notin @('-h', '-help', '-OutputPath'))) {
+        Write-Host "Exports administrative users based on group membership and adminCount."
+        Write-Host "-OutputPath: Path to export the CSV file."
+        return
+    }
+
     _AssertAdminPrivileges # Check for admin privileges
     # if OutputPath is not set, use $Global:OutputPath
     if (-not $OutputPath) {$OutputPath = "$Global:OutputPath"}

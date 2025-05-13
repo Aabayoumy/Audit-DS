@@ -38,8 +38,18 @@ function Export-ComputersOS {
         [string]$OutputPath,
         
         [Parameter(Mandatory=$false, HelpMessage="Export all computers regardless of support status.")]
-        [switch]$ExportAll
+        [switch]$ExportAll,
+        [switch]$Help,
+        [switch]$h
     )
+
+    # Check for help parameters or any other parameters
+    if ($Help -or $h -or ($Args.Count -gt 0 -and $Args[0] -notin @('-h', '-help', '-OutputPath', '-ExportAll'))) {
+        Write-Host "Exports computer OS details and end-of-support status from Active Directory."
+        Write-Host "-OutputPath: Path to export the CSV file."
+        Write-Host "-ExportAll: Exports all computers, not just those nearing or past end-of-support."
+        return
+    }
 
     if (-not $OutputPath) {$OutputPath = "$Global:OutputPath"}
     $null = New-Item -Path $OutputPath -ItemType Directory -Force
@@ -320,8 +330,8 @@ function Export-ComputersOS {
 
     # Filter results based on support status if -ExportAll is not specified
     if (-not $ExportAll) {
-        $filteredResults = $results | Where-Object { $_.Status -eq "end of support" -or $_.Status -eq "in extended support" }
-        Write-Host "Filtered to $($filteredResults.Count) computers with 'end of support' or 'in extended support' status."
+        $filteredResults = $results | Where-Object { $_.Status -eq "Out of support" -or $_.Status -eq "in extended support" }
+        Write-Host "Filtered to $($filteredResults.Count) computers with 'Out of support' or 'in extended support' status."
         $exportResults = $filteredResults
     } else {
         Write-Host "Exporting all $($results.Count) computers as requested with -ExportAll parameter."

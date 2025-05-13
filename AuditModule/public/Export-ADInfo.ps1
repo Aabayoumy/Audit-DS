@@ -1,8 +1,18 @@
 function Export-ADInfo {
     [CmdletBinding()]
     param (
-        [switch]$zip
+        [switch]$zip,
+        [switch]$Help,
+        [switch]$h
     )
+
+    # Check for help parameters or any other parameters
+    if ($Help -or $h -or ($Args.Count -gt 0 -and $Args[0] -notin @('-h', '-help', '-zip'))) {
+        Write-Host "Exports comprehensive Active Directory information to files."
+        Write-Host "-zip: Compresses output files into a zip archive."
+        return
+    }
+
     _AssertAdminPrivileges # Check for admin privileges
     $OutputPath = "$Global:OutputPath\ADInfo-$($((Get-Date).ToString('ddMMMyy-HHmm')))"
     $null = New-Item -Path $OutputPath -ItemType Directory -Force
