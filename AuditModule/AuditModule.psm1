@@ -24,4 +24,4 @@ Get-ChildItem -Path $PublicFunctionsPath -Filter *.ps1 | ForEach-Object {
 }
 
 # Export only the public functions
-Export-ModuleMember -Function Export-NTLMEvents, Export-LDAPEvents, Export-ADInfo, Get-DCs, Export-AdminUsers, Enable-Audit, Export-ComputersOS
+Export-ModuleMember -Function Export-NTLMEvents, Export-LDAPEvents, Export-ADInfo, Get-DCs, Export-AdminUsers, Enable-Audit, Export-ComputersOS, Set-LogSize
