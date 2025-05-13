@@ -1,7 +1,17 @@
 # Function to list Domain Controllers with specific details
+# Function to list Domain Controllers with specific details
 function Get-DCs {
     [CmdletBinding()]
-    param()
+    param(
+        [switch]$Help,
+        [switch]$h
+    )
+
+    # Check for help parameters or any other parameters
+    if ($Help -or $h -or ($Args.Count -gt 0 -and $Args[0] -notin @('-h', '-help'))) {
+        Write-Host "Lists domain controllers with specific details."
+        return
+    }
 
     # Retrieve DC information
     $DCs = Get-ADDomainController -Filter * | Select-Object HostName, IsReadOnly, OperatingSystem, IPv4Address, Site | Sort-Object HostName

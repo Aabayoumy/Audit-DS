@@ -4,8 +4,20 @@ function Export-LDAPEvents {
         # Define parameters for Audit-LDAP here
         [int]$MaxEvents = 10000,
         [int]$Timeout = 180,
-        [int]$Days = 7 # Number of days back to limit events
+        [int]$Days = 7, # Number of days back to limit events
+        [switch]$Help,
+        [switch]$h
     )
+
+    # Check for help parameters or any other parameters
+    if ($Help -or $h -or ($Args.Count -gt 0 -and $Args[0] -notin @('-h', '-help', '-MaxEvents', '-Timeout', '-Days'))) {
+        Write-Host "Exports LDAP events from domain controllers."
+        Write-Host "-MaxEvents: Maximum number of events to retrieve (default: 10000)."
+        Write-Host "-Timeout: Timeout in seconds for Get-WinEvent job (default: 180)."
+        Write-Host "-Days: Number of days back from the current date to limit events (default: 7)."
+        return
+    }
+
     _AssertAdminPrivileges # Check for admin privileges
     $OutputPath = "$Global:OutputPath\LDAP-$($((Get-Date).ToString('ddMMMyy-HHmm')))\"
     $null = New-Item -Path $OutputPath -ItemType Directory -Force

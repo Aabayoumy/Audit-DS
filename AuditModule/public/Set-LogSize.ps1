@@ -31,10 +31,19 @@ function Set-LogSize {
     param (
         [Parameter(Mandatory = $false)]
         [ValidateSet(2, 3, 4)]
-        [int]$Size = 2 # Default size in GB
+        [int]$Size = 2, # Default size in GB
+        [switch]$Help,
+        [switch]$h
     )
 
     Begin {
+        # Check for help parameters or any other parameters
+        if ($Help -or $h -or ($Args.Count -gt 0 -and $Args[0] -notin @('-h', '-help', '-Size'))) {
+            Write-Host "Sets the maximum size for Security and Directory Service event logs on domain controllers."
+            Write-Host "-Size: Specifies the maximum log size in GB (Valid: 2, 3, or 4. Default: 2)."
+            return
+        }
+
         Write-Verbose "Starting Set-LogSize function."
         # Ensure running with elevated privileges (basic check)
         if (-NOT ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
@@ -93,11 +102,17 @@ function Set-LogSize {
 
                     # Set Security log size
                     Write-Verbose "Setting Security log max size on $dc to $($Size)GB"
-                    Limit-EventLog -LogName Security -MaximumSize $maxSizeBytes -ComputerName $dc -ErrorAction Stop
+                    Invoke-Command -ComputerName $dc -ScriptBlock {
+                        param($logName, $maxSize)
+                        Limit-EventLog -LogName $logName -MaximumSize $maxSize -ErrorAction Stop
+                    } -ArgumentList "Security", $maxSizeBytes
 
                     # Set Directory Service log size
                     Write-Verbose "Setting Directory Service log max size on $dc to $($Size)GB"
-                    Limit-EventLog -LogName 'Directory Service' -MaximumSize $maxSizeBytes -ComputerName $dc -ErrorAction Stop
+                    Invoke-Command -ComputerName $dc -ScriptBlock {
+                        param($logName, $maxSize)
+                        Limit-EventLog -LogName $logName -MaximumSize $maxSize -ErrorAction Stop
+                    } -ArgumentList "Directory Service", $maxSizeBytes
 
                     # Restart EventLog service
                     Write-Verbose "Restarting EventLog service on $dc"
