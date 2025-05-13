@@ -330,8 +330,8 @@ function Export-ComputersOS {
 
     # Filter results based on support status if -ExportAll is not specified
     if (-not $ExportAll) {
-        $filteredResults = $results | Where-Object { $_.Status -eq "Out of support" -or $_.Status -eq "in extended support" }
-        Write-Host "Filtered to $($filteredResults.Count) computers with 'Out of support' or 'in extended support' status."
+        $filteredResults = $results | Where-Object { $_.Status -ne "in support" }
+        Write-Host "Filtered to $($filteredResults.Count) computers without 'in support' status."
         $exportResults = $filteredResults
     } else {
         Write-Host "Exporting all $($results.Count) computers as requested with -ExportAll parameter."
