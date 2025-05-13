@@ -119,7 +119,7 @@ function Set-LogSize {
                     $scError = Get-Content $tempErrorFile -Raw -ErrorAction SilentlyContinue
                 }
             } catch {
-                Write-Verbose "Exception running sc.exe query for $ServiceName on $ComputerName: $($_.Exception.Message)"
+                Write-Verbose "Exception running sc.exe query for $($ServiceName) on $($ComputerName): ${$_.Exception.Message}"
                 return "ErrorInExecution"
             } finally {
                 If (Test-Path $tempOutputFile) { Remove-Item $tempOutputFile -Force -ErrorAction SilentlyContinue }
