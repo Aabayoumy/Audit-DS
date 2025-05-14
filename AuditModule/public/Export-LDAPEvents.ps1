@@ -26,7 +26,9 @@ function Export-LDAPEvents {
     $null = New-Item -Path $OutputPath -ItemType Directory -Force
     $StartTime = (Get-Date).AddDays(-$Days) # Limit to the specified number of days
     $SourceIPs = @() # Initialize an array to collect unique SourceIP values
-    foreach ($DC in (Get-ADDomainController -Filter *).HostName | Where-Object { $_ -notin $IgnoredDCs }){
+    $allDCs = Get-ADDomainController -Filter * | Select-Object -ExpandProperty HostName
+    $ignoredDCsLower = $IgnoredDCs | ForEach-Object {$_.ToLower()}
+    foreach ($DC in $allDCs | Where-Object { ($_.Split('.')[0]).ToLower() -notin $ignoredDCsLower }){
         $OutputFile = "$OutputPath\$($DC).csv"
         Write-Host "[$($DC)] Searching log"
         $job = Start-Job -ScriptBlock {

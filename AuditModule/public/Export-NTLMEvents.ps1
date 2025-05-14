@@ -30,7 +30,9 @@ function Export-NTLMEvents {
     # Determine which NTLM versions to filter based on the -AllNTLM switch
     $NtlmFilter = if ($AllNTLM.IsPresent) { @('NTLM V1', 'NTLM V2') } else { @('NTLM V1') }
 
-    foreach ($DC in (Get-ADDomainController -Filter *).HostName | Where-Object { $_ -notin $IgnoredDCs }){
+    $allDCs = Get-ADDomainController -Filter * | Select-Object -ExpandProperty HostName
+    $ignoredDCsLower = $IgnoredDCs | ForEach-Object {$_.ToLower()}
+    foreach ($DC in $allDCs | Where-Object { ($_.Split('.')[0]).ToLower() -notin $ignoredDCsLower }){
         $OutputFile = "$OutputPath\$($DC).csv"
         Write-Host "[$($DC)] Searching log"
         $StartTime = (Get-Date).AddDays(-$Days) # Limit to the specified number of days

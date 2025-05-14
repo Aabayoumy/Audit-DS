@@ -70,7 +70,8 @@ function Set-LogSize {
         }
 
         # Filter out ignored DCs
-        $targetDCs = $allDCs | Where-Object { $_ -notin $ignoredDCs }
+        $ignoredDCsLower = $IgnoredDCs | ForEach-Object {$_.ToLower()}
+        $targetDCs = $allDCs | Where-Object { ($_.Split('.')[0]).ToLower() -notin $ignoredDCsLower }
         Write-Verbose "Target DCs after filtering ignored ones: $($targetDCs -join ', ')"
 
         if (-not $targetDCs) {
