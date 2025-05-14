@@ -6,24 +6,26 @@ function Export-NTLMEvents {
         [switch]$AllNTLM,
         [int]$Timeout = 180,
         [int]$Days = 7, # Number of days back to limit events
+        [Parameter(Mandatory = $false)]
+        [string[]]$IgnoredDCs = @(), # Array of DC names to ignore
         [switch]$Help,
         [switch]$h
     )
 
     # Check for help parameters or any other parameters
-    if ($Help -or $h -or ($Args.Count -gt 0 -and $Args[0] -notin @('-h', '-help', '-MaxEvents', '-AllNTLM', '-Timeout', '-Days'))) {
+    if ($Help -or $h -or ($Args.Count -gt 0 -and $Args[0] -notin @('-h', '-help', '-MaxEvents', '-AllNTLM', '-Timeout', '-Days', '-IgnoredDCs'))) {
         Write-Host "Exports NTLM authentication events from domain controllers."
         Write-Host "-MaxEvents: Maximum number of events to retrieve (default: 10000)."
         Write-Host "-AllNTLM: Includes NTLM V2 events (default: only NTLM V1)."
         Write-Host "-Timeout: Timeout in seconds for Get-WinEvent job (default: 180)."
         Write-Host "-Days: Number of days back from the current date to limit events (default: 7)."
+        Write-Host "-IgnoredDCs: Specifies one or more Domain Controller names to ignore (e.g., 'DC1', 'DC2', 'DC3')."
         return
     }
 
     _AssertAdminPrivileges # Check for admin privileges
     $OutputPath = "$Global:OutputPath\NTLM-$((Get-Date).ToString('ddMMMyy-HHmm'))\"
     $null = New-Item -Path $OutputPath -ItemType Directory -Force
-    $IgnoredDCs =  _GetIgnoredDCs # Load ignored DCs
 
     # Determine which NTLM versions to filter based on the -AllNTLM switch
     $NtlmFilter = if ($AllNTLM.IsPresent) { @('NTLM V1', 'NTLM V2') } else { @('NTLM V1') }

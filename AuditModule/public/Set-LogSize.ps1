@@ -32,15 +32,18 @@ function Set-LogSize {
         [Parameter(Mandatory = $false)]
         [ValidateSet(2, 3, 4)]
         [int]$Size = 2, # Default size in GB
+        [Parameter(Mandatory = $false)]
+        [string[]]$IgnoredDCs = @(), # Array of DC names to ignore
         [switch]$Help,
         [switch]$h
     )
 
     Begin {
         # Check for help parameters or any other parameters
-        if ($Help -or $h -or ($Args.Count -gt 0 -and $Args[0] -notin @('-h', '-help', '-Size'))) {
+        if ($Help -or $h -or ($Args.Count -gt 0 -and $Args[0] -notin @('-h', '-help', '-Size', '-IgnoredDCs'))) {
             Write-Host "Sets the maximum size for Security and Directory Service event logs on domain controllers."
             Write-Host "-Size: Specifies the maximum log size in GB (Valid: 2, 3, or 4. Default: 2)."
+            Write-Host "-IgnoredDCs: Specifies one or more Domain Controller names to ignore (e.g., 'DC1', 'DC2', 'DC3')."
             return
         }
 
@@ -54,22 +57,6 @@ function Set-LogSize {
         # Convert GB to Bytes for Limit-EventLog
         $maxSizeBytes = $Size * 1GB
         Write-Verbose "Target log size set to $($Size)GB ($($maxSizeBytes) bytes)."
-
-        # Get Ignored DCs using the private function (assuming it's accessible within the module scope)
-        try {
-            # Ensure the private function is available in the session state
-            if (-not (Get-Command _GetIgnoredDCs -ErrorAction SilentlyContinue)) {
-                Write-Error "_GetIgnoredDCs function not found. Ensure the module is loaded correctly."
-                return
-            }
-            $ignoredDCs = _GetIgnoredDCs # Calling the private function
-            Write-Verbose "Successfully retrieved ignored DCs: $($ignoredDCs -join ', ')"
-        }
-        catch {
-            Write-Error "Failed to retrieve ignored DCs using _GetIgnoredDCs. Error: $($_.Exception.Message)"
-            # Decide how to proceed: stop or continue without ignoring? Stopping is safer.
-            return
-        }
 
         # Get all Domain Controllers using Get-ADDomainController
         try {
