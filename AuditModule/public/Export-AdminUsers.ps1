@@ -68,9 +68,9 @@ function Export-AdminUsers {
                                 $null # Or use a placeholder like 'Never'
                             }
 
-                            # Convert PwdLastSet from ticks to DateTime (UTC based on AD standard)
+                            # Convert PwdLastSet from FileTime to DateTime
                             $PwdLastSetDate = if ($User.pwdLastSet -ne $null -and $User.pwdLastSet -ne 0) {
-                                [datetime]::FromFileTimeUtc((Get-Date -Date "1601-01-01 00:00:00Z").AddTicks($User.pwdLastSet).Ticks)
+                                [DateTime]::FromFileTime($User.pwdLastSet)
                             } else {
                                 $null # Or use a placeholder like 'Never' or 'Password Never Expires'
                             }
