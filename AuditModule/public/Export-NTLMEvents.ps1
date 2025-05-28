@@ -32,8 +32,13 @@ function Export-NTLMEvents {
 
     $allDCs = Get-ADDomainController -Filter * | Select-Object -ExpandProperty HostName
     $ignoredDCsLower = $IgnoredDCs | ForEach-Object {$_.ToLower()}
-    foreach ($DC in $allDCs | Where-Object { ($_.Split('.')[0]).ToLower() -notin $ignoredDCsLower }){
+    $DCsToProcess = $allDCs | Where-Object { ($_.Split('.')[0]).ToLower() -notin $ignoredDCsLower }
+    $totalDCs = $DCsToProcess.Count
+    $i = 0
+    foreach ($DC in $DCsToProcess){
+        $i++
         $OutputFile = "$OutputPath\$($DC).csv"
+        Write-Progress -Activity "Exporting NTLM Events" -Status "Processing DC: $($DC)" -CurrentOperation "Processed $i of $totalDCs DCs" -PercentComplete (($i / $totalDCs) * 100)
         Write-Host "[$($DC)] Searching log"
         $StartTime = (Get-Date).AddDays(-$Days) # Limit to the specified number of days
 

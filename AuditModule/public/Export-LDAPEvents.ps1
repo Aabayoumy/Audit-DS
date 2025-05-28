@@ -28,8 +28,13 @@ function Export-LDAPEvents {
     $SourceIPs = @() # Initialize an array to collect unique SourceIP values
     $allDCs = Get-ADDomainController -Filter * | Select-Object -ExpandProperty HostName
     $ignoredDCsLower = $IgnoredDCs | ForEach-Object {$_.ToLower()}
-    foreach ($DC in $allDCs | Where-Object { ($_.Split('.')[0]).ToLower() -notin $ignoredDCsLower }){
+    $DCsToProcess = $allDCs | Where-Object { ($_.Split('.')[0]).ToLower() -notin $ignoredDCsLower }
+    $totalDCs = $DCsToProcess.Count
+    $i = 0
+    foreach ($DC in $DCsToProcess){
+        $i++
         $OutputFile = "$OutputPath\$($DC).csv"
+        Write-Progress -Activity "Exporting LDAP Events" -Status "Processing DC: $($DC)" -CurrentOperation "Processed $i of $totalDCs DCs" -PercentComplete (($i / $totalDCs) * 100)
         Write-Host "[$($DC)] Searching log"
         $job = Start-Job -ScriptBlock {
             param($DC, $StartTime, $MaxEvents)
