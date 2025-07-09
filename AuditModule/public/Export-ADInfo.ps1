@@ -13,13 +13,22 @@ function Export-ADInfo {
         return
     }
 
-    _AssertAdminPrivileges # Check for admin privileges
+    AssertAdminPrivileges # Check for admin privileges
     $OutputPath = "$Global:OutputPath\ADInfo-$($((Get-Date).ToString('ddMMMyy-HHmm')))"
     $null = New-Item -Path $OutputPath -ItemType Directory -Force
     $Forest=Get-ADForest ; $ADDomain=Get-ADDomain ; $DN=($ADDomain.DistinguishedName)
     $null = Start-Transcript -Path "$OutputPath\transcript.txt"
-    ($Forest | Select-Object Name, RootDomain,Domains, ForestMode, SchemaMaster, DomainNamingMaster, Sites | Out-String).Trim() > "$OutputPath\_ADInfo_$($ADDomain.DNSRoot).txt"
-    (Get-ADReplicationSubnet -Filter * | Select-Object Name, Site | Sort-Object Site | Format-Table | Out-String).Trim() > "$OutputPath\Subnets.txt"
+    $ForestData = ($Forest | Select-Object Name, RootDomain,Domains, ForestMode, SchemaMaster, DomainNamingMaster, Sites )
+    ($ForestData | Out-String).Trim() > "$OutputPath\_ADInfo_$($ADDomain.DNSRoot).txt"   
+    $ForestData | Export-Report -OutputPath $OutputPath -Title "Forest " `
+        -DomainInfo $Forest.Name
+
+    $Subnets = (Get-ADReplicationSubnet -Filter * | Select-Object Name, Site | Sort-Object Site )
+    ($Subnets  | Format-Table | Out-String).Trim() >> "$OutputPath\Subnets.txt"
+
+    # Pass-NotReq Users
+    Get-ADUser -LDAPFilter "(userAccountControl:1.2.840.113556.1.4.803:=32)" -Properties userAccountControl | Select-Object samaccountname,useraccountcontrol | Export-Csv -Path "$OutputPath\users-pass-notreq.csv"
+
     Add-Content -Path "$OutputPath\_ADInfo_$($ADDomain.DNSRoot).txt" -Value "*`r`n#Domain $($ADDomain.DNSRoot)"
     ($ADDomain | Select-Object NetBIOSName, DNSRoot, DomainMode, PDCEmulator, InfrastructureMaster, RIDMaster | Out-String).Trim() >> "$OutputPath\_ADInfo_$($ADDomain.DNSRoot).txt"
     Add-Content -Path "$OutputPath\_ADInfo_$($ADDomain.DNSRoot).txt" -Value "`r`n"

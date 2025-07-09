@@ -23,7 +23,7 @@ function Export-NTLMEvents {
         return
     }
 
-    _AssertAdminPrivileges # Check for admin privileges
+    AssertAdminPrivileges # Check for admin privileges
     $OutputPath = "$Global:OutputPath\NTLM-$((Get-Date).ToString('ddMMMyy-HHmm'))\"
     $null = New-Item -Path $OutputPath -ItemType Directory -Force
 

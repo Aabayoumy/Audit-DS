@@ -16,7 +16,7 @@ function Export-AdminUsers {
         return
     }
 
-    _AssertAdminPrivileges # Check for admin privileges
+    AssertAdminPrivileges # Check for admin privileges
     # if OutputPath is not set, use $Global:OutputPath
     if (-not $OutputPath) {$OutputPath = "$Global:OutputPath"}
 

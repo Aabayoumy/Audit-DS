@@ -1,1 +1,1 @@
-powershell.exe -Command "Set-ExecutionPolicy -Scope Process -ChangeExecutionPolicy -Force Bypass; Import-Module .\AuditModule\AuditModule.psd1; Export-NTLMEvents"
+%SystemRoot%\System32\WindowsPowerShell\v1.0\powershell.exe -Command "Start-Process powershell -ArgumentList '-NoExit -Command \"Set-ExecutionPolicy -Scope Process Bypass; Import-Module .\AuditModule\AuditModule.psd1; Export-NTLMEvents\"'"

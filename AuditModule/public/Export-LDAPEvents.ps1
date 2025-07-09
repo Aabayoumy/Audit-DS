@@ -21,7 +21,7 @@ function Export-LDAPEvents {
         return
     }
 
-    _AssertAdminPrivileges # Check for admin privileges
+    AssertAdminPrivileges # Check for admin privileges
     $OutputPath = "$Global:OutputPath\LDAP-$($((Get-Date).ToString('ddMMMyy-HHmm')))\"
     $null = New-Item -Path $OutputPath -ItemType Directory -Force
     $StartTime = (Get-Date).AddDays(-$Days) # Limit to the specified number of days
