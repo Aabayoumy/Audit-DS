@@ -55,19 +55,18 @@ function Export-LDAPEvents {
             $Events = $job | Receive-Job
         } else {
             Write-Warning "[$($DC)] Get-WinEvent job failed with state: $($job.State)."
+            $job.Error | ForEach-Object { Write-Error $_ }
             $Events = $null
         }
 
         if ($Events) {
             $SourceIPs += $Events | Select-Object -ExpandProperty SourceIP | Sort-Object -Unique # Collect unique SourceIP values
+            $Events | Select-Object Time, SourceIP, User | Export-Csv $OutputFile -NoTypeInformation
+        }
+        elseif ($job.State -eq 'Completed') {
+            Write-Host "[$($DC)] No LDAP events (EventID 2889) found."
         }
         $job | Remove-Job
-
-        if ($Events) {
-            $Events | Select-Object Time, SourceIP, User | Export-Csv $OutputFile -NoTypeInformation
-        } else {
-            Write-Warning "[$($DC)] No LDAP events (EventID 2889) found or an error occurred."
-        }
     }
     $SourceIPs | Sort-Object -Unique  | Out-File "$OutputPath\SourceIPs.txt" -Encoding UTF8 # Export unique SourceIP values to SourceIPs.txt
         Start-Process "$($OutputPath)"
