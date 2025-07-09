@@ -220,7 +220,7 @@ function Export-ComputersOS {
     }
 
     # Load OS End-of-Support data from JSON
-    Write-Host "Loading OS End-of-Support data from embedded string..."
+    # Write-Host "Loading OS End-of-Support data from embedded string..."
     try {
         $osDataContent = $jsonData | ConvertFrom-Json
         # Create a lookup hashtable: Build Number -> { Mainstream = [datetime], Extended = [datetime] }
@@ -238,7 +238,7 @@ function Export-ComputersOS {
                 $osSupportLookup.Add($_.build_number, $supportInfo)
             }
         }
-        Write-Host "Successfully loaded and processed OS data for $($osSupportLookup.Count) unique build numbers."
+        # Write-Host "Successfully loaded and processed OS data for $($osSupportLookup.Count) unique build numbers."
     }
     catch {
         Write-Error "Failed to load or parse embedded JSON data. Error: $($_.Exception.Message)"
@@ -331,22 +331,22 @@ function Export-ComputersOS {
     # Filter results based on support status if -ExportAll is not specified
     if (-not $ExportAll) {
         $filteredResults = $results | Where-Object { $_.Status -ne "in support" }
-        Write-Host "Filtered to $($filteredResults.Count) computers without 'in support' status."
+        # Write-Host "Filtered to $($filteredResults.Count) computers without 'in support' status."
         $exportResults = $filteredResults
     } else {
-        Write-Host "Exporting all $($results.Count) computers as requested with -ExportAll parameter."
+        # Write-Host "Exporting all $($results.Count) computers as requested with -ExportAll parameter."
         $exportResults = $results
     }
 
     # Export results to CSV
-    Write-Host "Exporting results to '$OutputFile'..."
+    # Write-Host "Exporting results to '$OutputFile'..."
     try {
         $exportResults | Export-Csv -Path $OutputFile -NoTypeInformation -Encoding UTF8 -ErrorAction Stop
-        Write-Host "Successfully exported report to '$OutputFile'."
+        # Write-Host "Successfully exported report to '$OutputFile'."
     }
     catch {
         Write-Error "Failed to export results to CSV. Error: $($_.Exception.Message)"
     }
 
-    Write-Host "Function completed."
+    # Write-Host "Function completed."
 }

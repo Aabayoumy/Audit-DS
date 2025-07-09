@@ -49,19 +49,20 @@ function Export-ADInfo {
 
     Get-ADComputer -Filter { (LastLogonTimestamp -lt $time -or LastLogonTimestamp -notlike "*") } -Properties LastLogonTimestamp, WhenCreated, PasswordLastSet | Select-Object Name, WhenCreated, PasswordLastSet, @{N="LastLogonTimestamp";E={if ($_.LastLogonTimestamp) {[datetime]::FromFileTime($_.LastLogonTimestamp)} else {"Never"}}} | Export-Csv -Path "$OutputPath\Inactive_Computers.csv" -NoTypeInformation
     
-    # Define the list of special user account patterns to check
-    $SpecialUserPatterns = @(
+    # Define the list of special account patterns to check for users and computers
+    $SpecialObjectPatterns = @(
         'krb*',
         'AZURE*',
         'MSOL*'
         # Add more patterns here if needed in the future
     )
 
-    # Retrieve and export details for the specified special users
-    $SpecialUsersData = foreach ($pattern in $SpecialUserPatterns) {
-        Get-ADUser -Filter "samaccountname -like '$pattern'" -Properties Created, PasswordLastSet, Enabled | Select-Object Name, samaccountname, Created, PasswordLastSet, Enabled
+    # Retrieve and export details for the specified special accounts (users and computers)
+    $SpecialObjectsData = foreach ($pattern in $SpecialObjectPatterns) {
+        Get-ADObject -Filter "samaccountname -like '$pattern' -and (objectClass -eq 'user' -or objectClass -eq 'computer')" -Properties Created, Enabled, objectClass, pwdLastSet |
+            Select-Object Name, samaccountname, Created, Enabled, @{Name='Type';Expression={$_.objectClass}}, @{Name='PasswordLastSet';Expression={if ($_.pwdLastSet -gt 0) {[datetime]::FromFileTime($_.pwdLastSet)} else {'Not Set'}}}
     }
-    $SpecialUsersData | Sort-Object samaccountname | Export-Csv -Path "$OutputPath\SpecialUsers.csv" -NoTypeInformation -Encoding UTF8
+    $SpecialObjectsData | Sort-Object samaccountname | Export-Csv -Path "$OutputPath\SpecialAccounts.csv" -NoTypeInformation -Encoding UTF8
 
     netsh advfirewall show allprofiles > "$OutputPath\Firewall_Profiles.txt"
     Export-AdminUsers -OutputPath $OutputPath
