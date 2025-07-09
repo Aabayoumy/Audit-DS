@@ -69,9 +69,9 @@ function Export-NTLMEvents {
             $Events = $job | Receive-Job
         } else {
              Write-Warning "[$($DC)] Get-WinEvent job failed with state: $($job.State)."
+             $job.Error | ForEach-Object { Write-Error $_ }
              $Events = $null
         }
-        $job | Remove-Job
 
         if ($Events) {
             # Filter for NTLM V1 events excluding ANONYMOUS LOGON
@@ -80,9 +80,11 @@ function Export-NTLMEvents {
             # Update Write-Host to include the count
             Write-Host "[$($DC)] $NtlmV1Count NTLMv1 Events"
             $Events | Select-Object Time, WorkstationName, WorkstationIP, User, LmPackageName  | Export-Csv $OutputFile -NoTypeInformation
-        } else {
-            Write-Warning "[$($DC)] No NTLM events (EventID 4624) found or an error occurred."
         }
+        elseif ($job.State -eq 'Completed') {
+            Write-Host "[$($DC)] No NTLM events (EventID 4624) found."
+        }
+        $job | Remove-Job
     }
     Start-Process "$($OutputPath)"
 }
