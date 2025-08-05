@@ -64,6 +64,8 @@ function Export-ADInfo {
     }
     $SpecialObjectsData | Sort-Object samaccountname | Export-Csv -Path "$OutputPath\SpecialAccounts.csv" -NoTypeInformation -Encoding UTF8
 
+    (Get-ADComputer -Filter 'msDS-SupportedEncryptionTypes -band 0x1 -or msDS-SupportedEncryptionTypes -band 0x2 -or msDS-SupportedEncryptionTypes -band 0x4 -or userAccountControl -band 0x200000' -Properties Name,SamAccountName,msDS-SupportedEncryptionTypes,ServicePrincipalName | Select @{N='Type';E={'Computer'}},Name,SamAccountName,msDS-SupportedEncryptionTypes,ServicePrincipalName) |  Export-Csv "$OutputPath\Computers_WeakEncryption_Export.csv" -NoTypeInformation
+
     netsh advfirewall show allprofiles > "$OutputPath\Firewall_Profiles.txt"
     Export-AdminUsers -OutputPath $OutputPath
     Export-ComputersOS -OutputPath $OutputPath

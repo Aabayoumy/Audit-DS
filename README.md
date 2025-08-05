@@ -32,6 +32,11 @@ Exports NTLM authentication events from domain controllers.
 - `-Days`: Number of days back from the current date to limit events (default: 7).
 - `-IgnoredDCs`: Specifies one or more Domain Controller names to ignore (e.g., 'DC1', 'DC2', 'DC3').
 
+### Export-SMB1Events
+Exports SMB1 access events from the local server.
+- `-MaxEvents`: Maximum number of events to retrieve (default: 10000).
+- `-Days`: Number of days back from the current date to limit events (default: 7).
+
 ### Export-ComputersOS
 Exports computer OS details and end-of-support status from Active Directory.
 - `-OutputPath`: Path to export the CSV file.
