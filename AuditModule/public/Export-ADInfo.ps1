@@ -69,6 +69,11 @@ function Export-ADInfo {
     netsh advfirewall show allprofiles > "$OutputPath\Firewall_Profiles.txt"
     Export-AdminUsers -OutputPath $OutputPath
     Export-ComputersOS -OutputPath $OutputPath
+    try {
+        Export-UserSecurity -OutputPath $OutputPath | Out-Null
+    } catch {
+        Write-Warning "Export-UserSecurity failed during Export-ADInfo: $($_.Exception.Message)"
+    }
     $null = Stop-Transcript
     if ($zip.IsPresent) {
         Add-Type -As System.IO.Compression.FileSystem

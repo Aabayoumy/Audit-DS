@@ -9,7 +9,8 @@ $PublicFunctionsPath = Join-Path -Path $PSScriptRoot -ChildPath "public"
 Get-ChildItem -Path $PrivateFunctionsPath -Filter *.ps1 | ForEach-Object {
     try {
         . $_.FullName
-    } catch {
+    }
+    catch {
         Write-Error "Failed to load private function $($_.FullName): $($_.Exception.Message)"
     }
 }
@@ -18,10 +19,11 @@ Get-ChildItem -Path $PrivateFunctionsPath -Filter *.ps1 | ForEach-Object {
 Get-ChildItem -Path $PublicFunctionsPath -Filter *.ps1 | ForEach-Object {
     try {
         . $_.FullName
-    } catch {
+    }
+    catch {
         Write-Error "Failed to load public function $($_.FullName): $($_.Exception.Message)"
     }
 }
 
 # Export only the public functions
-Export-ModuleMember -Function Export-NTLMEvents, Export-LDAPEvents, Export-ADInfo, Get-DCs, Export-AdminUsers, Enable-Audit, Export-ComputersOS, Set-LogSize
+Export-ModuleMember -Function Export-NTLMEvents, Export-LDAPEvents, Export-ADInfo, Export-UserSecurity, Get-DCs, Export-AdminUsers, Enable-Audit, Export-ComputersOS, Set-LogSize
