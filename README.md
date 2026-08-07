@@ -87,7 +87,7 @@ Gets the certificate presented by a host during a TLS handshake (default LDAPS p
 
 - `-HostName` (or `-DCName`): Target host/DC. If omitted, the function automatically uses the domain PDC emulator and prints which DC was used.
 - `-Port`: TLS port to connect to (default: `636`).
-- `-Destination`: Optional path to save the certificate bytes in DER format.
+- `-ExportCrt`: If specified, exports the certificate to the current folder as `<DC>-LDAPS.cer`.
 
 ### Get-DCs
 

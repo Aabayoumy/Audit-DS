@@ -7,17 +7,17 @@ function Get-LdapServerCertificate {
 
         [int]$Port = 636,
 
-        [string]$Destination,
+        [switch]$ExportCrt,
 
         [switch]$Help,
         [switch]$h
     )
 
-    if ($Help -or $h -or ($Args.Count -gt 0 -and $Args[0] -notin @('-h', '-help', '-HostName', '-DCName', '-Port', '-Destination'))) {
+    if ($Help -or $h -or ($Args.Count -gt 0 -and $Args[0] -notin @('-h', '-help', '-HostName', '-DCName', '-Port', '-ExportCrt'))) {
         Write-Host 'Gets the certificate presented by a server during a TLS handshake (LDAPS by default).'
         Write-Host '-HostName/-DCName: Target host. If omitted, the domain PDC emulator is used.'
         Write-Host '-Port: TLS port (default: 636).'
-        Write-Host '-Destination: Optional path to save the raw certificate bytes (DER).'
+        Write-Host '-ExportCrt: If specified, exports the certificate to the current folder as <DC>-LDAPS.cer.'
         return
     }
 
@@ -52,9 +52,12 @@ function Get-LdapServerCertificate {
         throw "No certificate was captured from the TLS handshake with ${HostName}:$Port."
     }
 
-    if (-not [string]::IsNullOrWhiteSpace($Destination)) {
+    if ($ExportCrt.IsPresent) {
+        $dcName = ($HostName -split '\.')[0]
+        $filePath = Join-Path -Path (Get-Location).Path -ChildPath "$dcName-LDAPS.cer"
         $asByteStream = if ($PSEdition -eq 'Core') { @{ AsByteStream = $true } } else { @{ Encoding = 'Byte' } }
-        Set-Content -Path $Destination -Value $state.cert.GetRawCertData() @asByteStream
+        Set-Content -Path $filePath -Value $state.cert.GetRawCertData() @asByteStream
+        Write-Host "Certificate exported to: $filePath"
     }
 
     return $state.cert
