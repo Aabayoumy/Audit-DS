@@ -81,7 +81,7 @@ Exports the default security descriptor for the AD `user` schema class and the c
 - Run directly: `Export-UserSecurity -OutputPath C:\AuditOutput\UserSecurity`
 - Run as part of full collection: `Export-ADInfo` (calls `Export-UserSecurity` automatically and saves files in the same output folder)
 
-### Get-CertificateFromTlsHandshake
+### Get-LdapServerCertificate
 
 Gets the certificate presented by a host during a TLS handshake (default LDAPS port 636).
 

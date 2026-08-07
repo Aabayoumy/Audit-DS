@@ -5,7 +5,7 @@
     #
 
     RootModule = 'AuditModule.psm1'
-    ModuleVersion = '0.5.1'
+    ModuleVersion = '0.5.2'
     CompatiblePSEditions = @('Desktop', 'Core')
     GUID = 'c5cc2acf-06ce-4f30-9901-a7dd5d476a13'
     Author = 'abayoumy@outlook.com'
@@ -20,7 +20,7 @@
     # Minimum version of the common language runtime (CLR) required by this module.
     # ProcessorArchitecture = 'None'
     # Processor architecture that this module is built for.
-    FunctionsToExport = @('Export-NTLMEvents', 'Export-LDAPEvents', 'Export-ADInfo' , 'Export-UserSecurity', 'Get-DCs' , 'Export-AdminUsers' , 'Enable-Audit', 'Export-ComputersOS', 'Set-LogSize', 'Get-CertificateFromTlsHandshake')
+    FunctionsToExport = @('Export-NTLMEvents', 'Export-LDAPEvents', 'Export-ADInfo' , 'Export-UserSecurity', 'Get-DCs' , 'Export-AdminUsers' , 'Enable-Audit', 'Export-ComputersOS', 'Set-LogSize', 'Get-LdapServerCertificate')
     # List of functions to export from this module.
     # CmdletsToExport = @()
     # List of cmdlets to export from this module.

@@ -1,4 +1,4 @@
-function Get-CertificateFromTlsHandshake {
+function Get-LdapServerCertificate {
     [CmdletBinding()]
     param(
         [Parameter(Mandatory = $false, Position = 0)]
@@ -14,7 +14,7 @@ function Get-CertificateFromTlsHandshake {
     )
 
     if ($Help -or $h -or ($Args.Count -gt 0 -and $Args[0] -notin @('-h', '-help', '-HostName', '-DCName', '-Port', '-Destination'))) {
-        Write-Host 'Gets the remote certificate presented during a TLS handshake.'
+        Write-Host 'Gets the certificate presented by a server during a TLS handshake (LDAPS by default).'
         Write-Host '-HostName/-DCName: Target host. If omitted, the domain PDC emulator is used.'
         Write-Host '-Port: TLS port (default: 636).'
         Write-Host '-Destination: Optional path to save the raw certificate bytes (DER).'
