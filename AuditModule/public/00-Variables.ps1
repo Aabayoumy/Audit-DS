@@ -1,7 +1,8 @@
 $Global:DomainName = (Get-ADDomain).Name
 $Global:OutputPath = "c:\$DomainName"
+$Global:PingCastleTag = '3.5.0.44'
 # Get the directory of the current script (.psm1 file)
-$PSScriptRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
+    $PSScriptRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
 
 Write-Host "Domain: $Global:DomainName" -ForegroundColor Green
 Write-Host "Output Path: $Global:OutputPath" -ForegroundColor Green

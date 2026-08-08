@@ -26,4 +26,4 @@ Get-ChildItem -Path $PublicFunctionsPath -Filter *.ps1 | ForEach-Object {
 }
 
 # Export only the public functions
-Export-ModuleMember -Function Export-NTLMEvents, Export-LDAPEvents, Export-ADInfo, Export-UserSecurity, Get-DCs, Export-AdminUsers, Enable-Audit, Export-ComputersOS, Set-LogSize, Get-LdapServerCertificate
+Export-ModuleMember -Function Export-NTLMEvents, Export-LDAPEvents, Export-ADInfo, Export-UserSecurity, Get-DCs, Export-AdminUsers, Enable-Audit, Export-ComputersOS, Set-LogSize, Get-LdapServerCertificate, Download-PingCastle, Run-PingCastle
