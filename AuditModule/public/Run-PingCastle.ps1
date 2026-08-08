@@ -12,7 +12,8 @@ function Run-PingCastle {
         Write-Host 'Runs PingCastle in command-line mode (non-interactive healthcheck by default).'
         Write-Host '-Server: Domain to scan. If omitted, current AD domain DNS root is used when available.'
         Write-Host '-Tag: PingCastle release tag used if download is required.'
-        Write-Host '-OutputPath: Optional folder where the command is executed and output files are created.'
+        Write-Host '-OutputPath: Optional working folder where PingCastle is executed before results are moved.'
+        Write-Host 'Generated HTML/XML files are moved to $Global:OutputPath\<yyyy-MM-dd> and that folder is opened.'
         return
     }
 
@@ -64,9 +65,26 @@ function Run-PingCastle {
     $arguments = @('--healthcheck', '--server', $Server)
     $process = Start-Process -FilePath $pingCastleExePath -ArgumentList $arguments -WorkingDirectory $workDir -Wait -PassThru
 
+    $destinationRoot = if ([string]::IsNullOrWhiteSpace($Global:OutputPath)) { $workDir } else { $Global:OutputPath }
+    $dateFolder = (Get-Date).ToString('yyyy-MM-dd')
+    $destinationPath = Join-Path -Path $destinationRoot -ChildPath $dateFolder
+    $null = New-Item -Path $destinationPath -ItemType Directory -Force
+
+    $generatedFiles = @(Get-ChildItem -Path $workDir -File -ErrorAction SilentlyContinue | Where-Object { $_.Extension -in @('.html', '.xml') })
+    foreach ($file in $generatedFiles) {
+        $targetFile = Join-Path -Path $destinationPath -ChildPath $file.Name
+        if ($file.FullName -ne $targetFile) {
+            Move-Item -Path $file.FullName -Destination $targetFile -Force
+        }
+    }
+
+    Start-Process $destinationPath | Out-Null
+
     [PSCustomObject]@{
         PingCastleExe      = $pingCastleExePath
         WorkingDirectory   = $workDir
+        ResultPath         = $destinationPath
+        MovedFilesCount    = $generatedFiles.Count
         Server             = $Server
         RecommendedCommand = "PingCastle.exe --healthcheck --server $Server"
         ExitCode           = $process.ExitCode

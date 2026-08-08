@@ -105,7 +105,8 @@ Runs PingCastle in command-line mode and recommends the silent healthcheck comma
 - Validates PingCastle command-line switches using `PingCastle.exe --help`.
 - Recommended silent command: `PingCastle.exe --healthcheck --server <domain>`.
 - `-Server`: Domain to scan. If omitted, the current AD domain DNS name is used.
-- `-OutputPath`: Optional working folder where PingCastle output files are generated.
+- `-OutputPath`: Optional working folder where PingCastle runs before results are moved.
+- After execution, generated `*.html` and `*.xml` files are moved to `$Global:OutputPath\<yyyy-MM-dd>` and that folder is opened.
 
 ### Get-DCs
 
