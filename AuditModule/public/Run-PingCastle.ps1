@@ -17,15 +17,16 @@ function Run-PingCastle {
         return
     }
 
-    $scriptRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
+    $scriptRoot = $null
+    if ($MyInvocation.MyCommand.Path) {
+        $scriptRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
+    } elseif ($PSScriptRoot) {
+        $scriptRoot = Split-Path -Parent $PSScriptRoot
+    } elseif ($MyInvocation.MyCommand.Module -and $MyInvocation.MyCommand.Module.Path) {
+        $scriptRoot = Split-Path -Parent $MyInvocation.MyCommand.Module.Path
+    }
     if ([string]::IsNullOrWhiteSpace($scriptRoot)) {
-        if ($MyInvocation.MyCommand.Module -and $MyInvocation.MyCommand.Module.Path) {
-            $scriptRoot = Split-Path -Parent $MyInvocation.MyCommand.Module.Path
-        } elseif ($PSScriptRoot) {
-            $scriptRoot = Split-Path -Parent $PSScriptRoot
-        } else {
-            $scriptRoot = (Get-Location).Path
-        }
+        $scriptRoot = (Get-Location).Path
     }
 
     $pingCastleExe = Get-ChildItem -Path $scriptRoot -Filter 'PingCastle.exe' -Recurse -File -ErrorAction SilentlyContinue | Select-Object -First 1
