@@ -20,6 +20,17 @@ Exports comprehensive Active Directory information to files.
 - Exports `GPResult` in XML format only when running on a Domain Controller; otherwise shows a warning and continues.
 - Also runs `Export-UserSecurity` automatically and writes its files into the same output folder.
 
+### Export-Assesment
+
+Runs a combined assessment workflow and packages the results.
+
+- Executes `Export-ADInfo` and `Start-PingCastle`.
+- Creates and populates `$Global:OutputPath\<yyyy-MM-dd>\Assesment` with `ADInfo` and `PingCastle` folders.
+- Creates zip archive: `$Global:OutputPath\<yyyy-MM-dd>\Assesment.zip`.
+- Opens the container folder: `$Global:OutputPath\<yyyy-MM-dd>`.
+- `-Server`: Optional domain value passed to PingCastle run.
+- `-Tag`: Optional PingCastle version tag passed to PingCastle run.
+
 ### Export-AdminUsers
 
 Exports administrative users based on group membership and adminCount.
