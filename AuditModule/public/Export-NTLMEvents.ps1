@@ -24,7 +24,8 @@ function Export-NTLMEvents {
     }
 
     AssertAdminPrivileges # Check for admin privileges
-    $OutputPath = "$Global:OutputPath\NTLM-$((Get-Date).ToString('ddMMMyy-HHmm'))\"
+    $todayFolder = (Get-Date).ToString('yyyy-MM-dd')
+    $OutputPath = Join-Path -Path (Join-Path -Path $Global:OutputPath -ChildPath $todayFolder) -ChildPath 'NTLMEvents'
     $null = New-Item -Path $OutputPath -ItemType Directory -Force
 
     # Determine which NTLM versions to filter based on the -AllNTLM switch

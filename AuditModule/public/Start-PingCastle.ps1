@@ -13,7 +13,7 @@ function Start-PingCastle {
         Write-Host '-Server: Domain to scan. If omitted, current AD domain DNS root is used when available.'
         Write-Host '-Tag: PingCastle release tag used if download is required.'
         Write-Host '-OutputPath: Optional working folder where PingCastle is executed before results are moved.'
-        Write-Host 'Generated HTML/XML files are moved to $Global:OutputPath\<yyyy-MM-dd> and that folder is opened.'
+        Write-Host 'Generated HTML/XML files are moved to $Global:OutputPath\<yyyy-MM-dd>\PingCastle and that folder is opened.'
         return
     }
 
@@ -68,7 +68,7 @@ function Start-PingCastle {
 
     $destinationRoot = if ([string]::IsNullOrWhiteSpace($Global:OutputPath)) { $workDir } else { $Global:OutputPath }
     $dateFolder = (Get-Date).ToString('yyyy-MM-dd')
-    $destinationPath = Join-Path -Path $destinationRoot -ChildPath $dateFolder
+    $destinationPath = Join-Path -Path (Join-Path -Path $destinationRoot -ChildPath $dateFolder) -ChildPath 'PingCastle'
     $null = New-Item -Path $destinationPath -ItemType Directory -Force
 
     $generatedFiles = @(Get-ChildItem -Path $workDir -File -ErrorAction SilentlyContinue | Where-Object { $_.Extension -in @('.html', '.xml') })

@@ -18,7 +18,10 @@ function Export-AdminUsers {
 
     AssertAdminPrivileges # Check for admin privileges
     # if OutputPath is not set, use $Global:OutputPath
-    if (-not $OutputPath) {$OutputPath = "$Global:OutputPath"}
+    if (-not $OutputPath) {
+        $todayFolder = (Get-Date).ToString('yyyy-MM-dd')
+        $OutputPath = Join-Path -Path (Join-Path -Path $Global:OutputPath -ChildPath $todayFolder) -ChildPath 'AdminUsers'
+    }
 
     $null = New-Item -Path $OutputPath -ItemType Directory -Force
     $OutputFile = "$OutputPath\AdminUsers-$($((Get-Date).ToString('ddMMMyy-HHmm'))).csv"

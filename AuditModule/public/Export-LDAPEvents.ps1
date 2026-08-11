@@ -22,7 +22,8 @@ function Export-LDAPEvents {
     }
 
     AssertAdminPrivileges # Check for admin privileges
-    $OutputPath = "$Global:OutputPath\LDAP-$($((Get-Date).ToString('ddMMMyy-HHmm')))\"
+    $todayFolder = (Get-Date).ToString('yyyy-MM-dd')
+    $OutputPath = Join-Path -Path (Join-Path -Path $Global:OutputPath -ChildPath $todayFolder) -ChildPath 'LDAPEvents'
     $null = New-Item -Path $OutputPath -ItemType Directory -Force
     $StartTime = (Get-Date).AddDays(-$Days) # Limit to the specified number of days
     $SourceIPs = @() # Initialize an array to collect unique SourceIP values

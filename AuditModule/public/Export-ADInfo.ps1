@@ -14,7 +14,8 @@ function Export-ADInfo {
     }
 
     AssertAdminPrivileges # Check for admin privileges
-    $OutputPath = "$Global:OutputPath\ADInfo-$($((Get-Date).ToString('ddMMMyy-HHmm')))"
+    $todayFolder = (Get-Date).ToString('yyyy-MM-dd')
+    $OutputPath = Join-Path -Path (Join-Path -Path $Global:OutputPath -ChildPath $todayFolder) -ChildPath 'ADInfo'
     $null = New-Item -Path $OutputPath -ItemType Directory -Force
     $Forest=Get-ADForest ; $ADDomain=Get-ADDomain ; $DN=($ADDomain.DistinguishedName)
     $isDomainController = $false

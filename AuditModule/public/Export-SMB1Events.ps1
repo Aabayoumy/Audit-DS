@@ -37,7 +37,8 @@ function Export-SMB1Events {
 
     Write-Host "SMB1 is enabled and auditing is active. Exporting events."
 
-    $OutputPath = "$Global:OutputPath\SMB1-$($((Get-Date).ToString('ddMMMyy-HHmm')))\"
+    $todayFolder = (Get-Date).ToString('yyyy-MM-dd')
+    $OutputPath = Join-Path -Path (Join-Path -Path $Global:OutputPath -ChildPath $todayFolder) -ChildPath 'SMB1Events'
     $null = New-Item -Path $OutputPath -ItemType Directory -Force
     $OutputFile = "$OutputPath\SMB1_Events.csv"
     $StartTime = (Get-Date).AddDays(-$Days)

@@ -51,7 +51,10 @@ function Export-ComputersOS {
         return
     }
 
-    if (-not $OutputPath) {$OutputPath = "$Global:OutputPath"}
+    if (-not $OutputPath) {
+        $todayFolder = (Get-Date).ToString('yyyy-MM-dd')
+        $OutputPath = Join-Path -Path (Join-Path -Path $Global:OutputPath -ChildPath $todayFolder) -ChildPath 'ComputersOS'
+    }
     $null = New-Item -Path $OutputPath -ItemType Directory -Force
     $OutputFile = "$OutputPath\Computers_OS_Support$($((Get-Date).ToString('ddMMMyy-HHmm'))).csv"
 

@@ -21,7 +21,8 @@ function Export-UserSecurity {
     }
 
     if (-not $OutputPath) {
-        $OutputPath = "$Global:OutputPath\UserSecurity-$((Get-Date).ToString('ddMMMyy-HHmm'))"
+        $todayFolder = (Get-Date).ToString('yyyy-MM-dd')
+        $OutputPath = Join-Path -Path (Join-Path -Path $Global:OutputPath -ChildPath $todayFolder) -ChildPath 'UserSecurity'
     }
 
     $null = New-Item -Path $OutputPath -ItemType Directory -Force

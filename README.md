@@ -117,7 +117,7 @@ Runs PingCastle in command-line mode and recommends the silent healthcheck comma
 - Recommended silent command: `PingCastle.exe --healthcheck --server <domain>`.
 - `-Server`: Domain to scan. If omitted, the current AD domain DNS name is used.
 - `-OutputPath`: Optional working folder where PingCastle runs before results are moved.
-- After execution, generated `*.html` and `*.xml` files are moved to `$Global:OutputPath\<yyyy-MM-dd>` and that folder is opened.
+- After execution, generated `*.html` and `*.xml` files are moved to `$Global:OutputPath\<yyyy-MM-dd>\PingCastle` and that folder is opened.
 
 ### Get-DCs
 
@@ -136,3 +136,4 @@ Sets the maximum size for Security and Directory Service event logs on domain co
 - Open PowerShell as Admin and CD to extracted folder.
 - Set execution policy `Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser -Force`
 - `Import-Module -Name .\AuditModule -Force`
+- Default output layout is `$Global:OutputPath\<yyyy-MM-dd>\<FunctionFolder>` (for example `ADInfo`, `NTLMEvents`, `LDAPEvents`, `UserSecurity`).

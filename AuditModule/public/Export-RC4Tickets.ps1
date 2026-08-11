@@ -30,7 +30,8 @@ function Export-RC4Tickets {
         return
     }
 
-    $OutputPath = "$Global:OutputPath\RC4-$((Get-Date).ToString('ddMMMyy-HHmm'))\"
+    $todayFolder = (Get-Date).ToString('yyyy-MM-dd')
+    $OutputPath = Join-Path -Path (Join-Path -Path $Global:OutputPath -ChildPath $todayFolder) -ChildPath 'RC4Tickets'
     $null = New-Item -Path $OutputPath -ItemType Directory -Force
 
     $start = (Get-Date).AddDays(-$Days)
