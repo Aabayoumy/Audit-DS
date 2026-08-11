@@ -49,6 +49,14 @@ Exports SMB1 access events from the local server.
 - `-MaxEvents`: Maximum number of events to retrieve (default: 10000).
 - `-Days`: Number of days back from the current date to limit events (default: 7).
 
+### Export-RC4Tickets
+
+Exports Kerberos service-ticket events (Event ID 4769) that use RC4 (`TicketEncryptionType = 0x17`) from all domain controllers.
+
+- `-DaysBack`: Number of days of Security log history to search (default: `1`).
+- `-CsvPath`: Full path for CSV output (default: `$Global:OutputPath\RC4-4769-<date>.csv`).
+- Includes Domain Controller, event time, target username, and service name.
+
 ### Export-ComputersOS
 
 Exports computer OS details and end-of-support status from Active Directory.
