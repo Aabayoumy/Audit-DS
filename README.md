@@ -53,9 +53,11 @@ Exports SMB1 access events from the local server.
 
 Exports Kerberos service-ticket events (Event ID 4769) that use RC4 (`TicketEncryptionType = 0x17`) from all domain controllers.
 
-- `-DaysBack`: Number of days of Security log history to search (default: `1`).
-- `-CsvPath`: Full path for CSV output (default: `$Global:OutputPath\RC4-4769-<date>.csv`).
-- Includes Domain Controller, event time, target username, and service name.
+- `-MaxEvents`: Maximum number of events to retrieve from each DC (default: `10000`).
+- `-Timeout`: Timeout in seconds for each DC log query (default: `180`).
+- `-Days`: Number of days of Security log history to search (default: `7`).
+- `-IgnoredDCs`: One or more Domain Controller names to skip.
+- Exports one CSV per DC plus a combined `RC4-4769-AllDCs.csv` file in the output folder.
 
 ### Export-ComputersOS
 
