@@ -126,9 +126,10 @@ Runs PingCastle in command-line mode and recommends the silent healthcheck comma
 - If `PingCastle.exe` is not found in the module folder, it automatically calls `Install-PingCastle`.
 - Validates PingCastle command-line switches using `PingCastle.exe --help`.
 - Recommended silent command: `PingCastle.exe --healthcheck --server <domain>`.
+- Also runs SMB scanner in all-systems mode when supported: `PingCastle.exe --scanner smb --scmode-all --server <domain>`.
 - `-Server`: Domain to scan. If omitted, the current AD domain DNS name is used.
 - `-OutputPath`: Optional working folder where PingCastle runs before results are moved.
-- After execution, generated `*.html` and `*.xml` files are moved to `$Global:OutputPath\<yyyy-MM-dd>\PingCastle` and that folder is opened.
+- After execution, generated report files (`*.html`, `*.xml`, `*.txt`, `*.csv`, `*.json`) are moved to `$Global:OutputPath\<yyyy-MM-dd>\PingCastle` and that folder is opened.
 
 ### Get-DCs
 
