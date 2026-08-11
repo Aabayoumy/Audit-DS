@@ -1,4 +1,4 @@
-function Run-PingCastle {
+function Start-PingCastle {
     [CmdletBinding()]
     param(
         [string]$Server,
@@ -31,8 +31,8 @@ function Run-PingCastle {
 
     $pingCastleExe = Get-ChildItem -Path $scriptRoot -Filter 'PingCastle.exe' -Recurse -File -ErrorAction SilentlyContinue | Select-Object -First 1
     if (-not $pingCastleExe) {
-        Write-Host 'PingCastle.exe not found. Running Download-PingCastle first...'
-        $downloadInfo = Download-PingCastle -Tag $Tag -ErrorAction Stop
+        Write-Host 'PingCastle.exe not found. Running Install-PingCastle first...'
+        $downloadInfo = Install-PingCastle -Tag $Tag -ErrorAction Stop
         $pingCastleExePath = $downloadInfo.PingCastleExe
     } else {
         $pingCastleExePath = $pingCastleExe.FullName

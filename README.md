@@ -99,7 +99,7 @@ Gets the certificate presented by a host during a TLS handshake (default LDAPS p
 - `-Port`: TLS port to connect to (default: `636`).
 - `-ExportCrt`: If specified, exports the certificate to the current folder as `<DC>-LDAPS.cer`.
 
-### Download-PingCastle
+### Install-PingCastle
 
 Downloads and extracts PingCastle to the module folder.
 
@@ -107,11 +107,11 @@ Downloads and extracts PingCastle to the module folder.
 - `-Force`: Re-downloads and re-extracts even if `PingCastle.exe` already exists.
 - Downloads from GitHub release assets using `PingCastle_<tag>.zip`.
 
-### Run-PingCastle
+### Start-PingCastle
 
 Runs PingCastle in command-line mode and recommends the silent healthcheck command.
 
-- If `PingCastle.exe` is not found in the module folder, it automatically calls `Download-PingCastle`.
+- If `PingCastle.exe` is not found in the module folder, it automatically calls `Install-PingCastle`.
 - Validates PingCastle command-line switches using `PingCastle.exe --help`.
 - Recommended silent command: `PingCastle.exe --healthcheck --server <domain>`.
 - `-Server`: Domain to scan. If omitted, the current AD domain DNS name is used.

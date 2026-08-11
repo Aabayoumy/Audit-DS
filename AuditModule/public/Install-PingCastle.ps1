@@ -1,4 +1,4 @@
-function Download-PingCastle {
+function Install-PingCastle {
     [CmdletBinding()]
     param(
         [string]$Tag = $Global:PingCastleTag,
