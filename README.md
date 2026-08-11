@@ -17,6 +17,7 @@ Imports GPO settings to enable auditing.
 Exports comprehensive Active Directory information to files.
 
 - `-zip`: Compresses output files into a zip archive.
+- Exports `GPResult` in XML format only when running on a Domain Controller; otherwise shows a warning and continues.
 - Also runs `Export-UserSecurity` automatically and writes its files into the same output folder.
 
 ### Export-AdminUsers

@@ -17,6 +17,13 @@ function Export-ADInfo {
     $OutputPath = "$Global:OutputPath\ADInfo-$($((Get-Date).ToString('ddMMMyy-HHmm')))"
     $null = New-Item -Path $OutputPath -ItemType Directory -Force
     $Forest=Get-ADForest ; $ADDomain=Get-ADDomain ; $DN=($ADDomain.DistinguishedName)
+    $isDomainController = $false
+    try {
+        $domainRole = (Get-CimInstance -ClassName Win32_ComputerSystem -ErrorAction Stop).DomainRole
+        $isDomainController = $domainRole -in 4, 5
+    } catch {
+        Write-Warning "Unable to determine local machine role. GPResult XML collection will be skipped unless DC role is confirmed."
+    }
     $null = Start-Transcript -Path "$OutputPath\transcript.txt"
     $ForestData = ($Forest | Select-Object Name, RootDomain,Domains, ForestMode, SchemaMaster, DomainNamingMaster, Sites )
     ($ForestData | Out-String).Trim() > "$OutputPath\_ADInfo_$($ADDomain.DNSRoot).txt"   
@@ -34,7 +41,11 @@ function Export-ADInfo {
     Add-Content -Path "$OutputPath\_ADInfo_$($ADDomain.DNSRoot).txt" -Value "`r`n-IPConfig"
     (ipconfig /all  | Out-String).Trim() >> "$OutputPath\_ADInfo_$($ADDomain.DNSRoot).txt"
     repadmin /showrepl *   /csv > "$OutputPath\showrepl.csv"
-    Gpresult /h "$($OutputPath)\$($env:computername)_GPResult.html"
+    if ($isDomainController) {
+        gpresult /x "$($OutputPath)\$($env:computername)_GPResult.xml"
+    } else {
+        Write-Warning "GPResult XML export is skipped because this machine is not a Domain Controller."
+    }
     Auditpol /get /category:* > "$($OutputPath)\$($env:computername)_Audit.txt"
     (Get-ADForest -Current LoggedOnUser).Domains | %{ Get-ADDefaultDomainPasswordPolicy -Identity $_ } | Export-Csv -Path "$OutputPath\DomainPasswordPolicy.csv" -NoTypeInformation
     nltest /DOMAIN_TRUSTS  > "$OutputPath\Trust.txt"
