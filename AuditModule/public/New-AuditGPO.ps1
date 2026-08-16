@@ -81,9 +81,13 @@ Revision=1
 "@
         Set-Content -Path (Join-Path $regPrefDir 'Registry.xml') -Value $regXml -Encoding UTF8
 
-        $gpoDn = "CN=$($gpo.Id.ToString('B')),CN=Policies,CN=System,$((Get-ADDomain).DistinguishedName)"
-        $adGpo = Get-ADObject -Identity $gpoDn -Properties versionNumber
-        Set-ADObject -Identity $gpoDn -Replace @{
+        $gpoIdString = $gpo.Id.ToString()
+        $adGpo = Get-ADObject -Filter "objectGUID -eq '$gpoIdString'" -Properties versionNumber -ErrorAction Stop
+        if (-not $adGpo) {
+            throw "GPO AD container not found for GUID $gpoIdString. Confirm the GPO was created and AD replication completed."
+        }
+        Write-Verbose "Bumping GPO version at $($adGpo.DistinguishedName)"
+        Set-ADObject -Identity $adGpo.DistinguishedName -Replace @{
             versionNumber = [int]$adGpo.versionNumber + 0x10000
         }
 
