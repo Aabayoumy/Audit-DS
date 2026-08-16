@@ -140,8 +140,7 @@ Lists domain controllers with specific details.
 Creates a new GPO (not linked) by restoring the bundled `_Audit-NTLM-Ldap` GPO backup (`AuditModule\GPO\<BackupID>`).
 
 - `-Name`: GPO display name (default: `_Audit-NTLM-Ldap`).
-- `-Domain`: Target domain FQDN. If omitted, the current AD domain is used.
-- Restores via `Import-GPO`, so domain-specific values are converted to the target domain.
+- Restores via `Import-GPO` into the **current** AD domain.
 - Creates the GPO and does **not** link it.
 - The GPO configures:
 

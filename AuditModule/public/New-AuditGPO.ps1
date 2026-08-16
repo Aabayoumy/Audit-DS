@@ -4,18 +4,15 @@ function New-AuditGPO {
         [Parameter(Mandatory = $false)]
         [string]$Name = '_Audit-NTLM-Ldap',
 
-        [Parameter(Mandatory = $false)]
-        [string]$Domain,
-
         [switch]$Help,
         [switch]$h
     )
 
-    if ($Help -or $h -or ($Args.Count -gt 0 -and $Args[0] -notin @('-h', '-help', '-Name', '-Domain'))) {
+    if ($Help -or $h -or ($Args.Count -gt 0 -and $Args[0] -notin @('-h', '-help', '-Name'))) {
         Write-Host 'Creates a new (unlinked) GPO by restoring the bundled _Audit-NTLM-Ldap GPO backup.'
         Write-Host 'The GPO enables NTLM auditing (Security Options), sets the Security log to 2 GB, and enables LDAP diagnostics auditing (Registry preference).'
         Write-Host '-Name: GPO display name (default: _Audit-NTLM-Ldap).'
-        Write-Host '-Domain: Target domain FQDN. If omitted, the current AD domain is used.'
+        Write-Host 'Always restores into the current AD domain.'
         return
     }
 
@@ -33,10 +30,7 @@ function New-AuditGPO {
     }
     Import-Module ActiveDirectory -ErrorAction Stop
 
-    $domainFqdn = $Domain
-    if (-not $domainFqdn) {
-        $domainFqdn = (Get-ADDomain).DNSRoot
-    }
+    $domainFqdn = (Get-ADDomain).DNSRoot
 
     # Create only a NEW GPO - never overwrite an existing one
     if (Get-GPO -Name $Name -Domain $domainFqdn -ErrorAction SilentlyContinue) {
