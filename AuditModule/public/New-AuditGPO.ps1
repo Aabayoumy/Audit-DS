@@ -57,27 +57,10 @@ function New-AuditGPO {
 
     $guid = $gpo.Id
 
-    try {
-        # Network security: Restrict NTLM: Audit Incoming NTLM Traffic -> Enable auditing for all accounts (2)
-        Set-GPRegistryValue -Guid $guid -Key 'HKLM\SYSTEM\CurrentControlSet\Control\Lsa\MSV1_0' -ValueName 'AuditReceivingNTLMTraffic' -Type DWord -Value 2 -ErrorAction Stop
-
-        # Network security: Restrict NTLM: Audit NTLM authentication in this domain -> Enable all (3)
-        Set-GPRegistryValue -Guid $guid -Key 'HKLM\SYSTEM\CurrentControlSet\Control\Lsa' -ValueName 'AuditNtlmAuthenticationInDomain' -Type DWord -Value 3 -ErrorAction Stop
-
-        # Network security: Restrict NTLM: Outgoing NTLM traffic to remote servers -> Audit all (1)
-        Set-GPRegistryValue -Guid $guid -Key 'HKLM\SYSTEM\CurrentControlSet\Control\Lsa\MSV1_0' -ValueName 'RestrictSendingNTLMTraffic' -Type DWord -Value 1 -ErrorAction Stop
-
-        # Event Log Service > Security and Directory Service log maximum size (KB) via Group Policy.
-        # MaxSize REG_DWORD is stored in KB: <GB> * 1048576 (e.g. 2 GB = 2097152 KB).
-        $maxLogSizeKb = $MaxLogSize * 1048576
-        Set-GPRegistryValue -Guid $guid -Key 'HKLM\SOFTWARE\Policies\Microsoft\Windows\EventLog\Security' -ValueName 'MaxSize' -Type DWord -Value $maxLogSizeKb -ErrorAction Stop
-        Set-GPRegistryValue -Guid $guid -Key 'HKLM\SOFTWARE\Policies\Microsoft\Windows\EventLog\Directory Service' -ValueName 'MaxSize' -Type DWord -Value $maxLogSizeKb -ErrorAction Stop
-    } catch {
-        throw "Failed to apply registry-based settings to GPO '$Name': $($_.Exception.Message)"
-    }
-
-    # Write the LDAP Interface Events registry preference (GPP) directly to SYSVOL.
+    # Write the LDAP Interface Events registry preference (GPP) directly to SYSVOL first.
     # No GroupPolicy module cmdlet supports GPP registry items, so we author Registry.xml.
+    # Writing it before Set-GPRegistryValue lets the module's version bumps keep AD and
+    # SysVol versions in sync, so no manual versionNumber update is required.
     try {
         $prefDir = "\\$domainFqdn\SysVol\$domainFqdn\Policies\{$guid}\Machine\Preferences\Registry"
         $registryXml = Join-Path -Path $prefDir -ChildPath 'Registry.xml'
@@ -107,27 +90,27 @@ $item</RegistrySettings>
 "@
             [System.IO.File]::WriteAllText($registryXml, $fullXml, (New-Object System.Text.UTF8Encoding($false)))
         }
-
-        # Bump the GPO computer version so clients re-apply the GPP item we wrote directly to SYSVOL.
-        $gptIni  = "\\$domainFqdn\SysVol\$domainFqdn\Policies\{$guid}\GPT.INI"
-        $domainDn = (Get-ADDomain).DistinguishedName
-        if ((Test-Path $gptIni) -and $domainDn) {
-            $gptContent = [System.IO.File]::ReadAllText($gptIni)
-            $m = [regex]::Match($gptContent, '(?m)^Version=(\d+)')
-            if ($m.Success) {
-                $oldVersion   = [int]$m.Groups[1].Value
-                $userVersion  = [int]((($oldVersion -shr 16) -band 0xFFFF))
-                [int]$computerVersion = $oldVersion -band 0xFFFF
-                $computerVersion++
-                $newVersion = (($userVersion -shl 16) -bor ($computerVersion -band 0xFFFF))
-                $gptContent = [regex]::Replace($gptContent, '(?m)^Version=\d+', "Version=$newVersion")
-                [System.IO.File]::WriteAllText($gptIni, $gptContent, (New-Object System.Text.UTF8Encoding($false)))
-                Set-ADObject -Identity "CN={$guid},CN=Policies,CN=System,$domainDn" -Replace @{ versionNumber = $newVersion } -ErrorAction SilentlyContinue
-                Write-Verbose "Bumped GPO version to $newVersion"
-            }
-        }
     } catch {
         Write-Warning "LDAP registry preference could not be written: $($_.Exception.Message)"
+    }
+
+    try {
+        # Network security: Restrict NTLM: Audit Incoming NTLM Traffic -> Enable auditing for all accounts (2)
+        Set-GPRegistryValue -Guid $guid -Key 'HKLM\SYSTEM\CurrentControlSet\Control\Lsa\MSV1_0' -ValueName 'AuditReceivingNTLMTraffic' -Type DWord -Value 2 -ErrorAction Stop
+
+        # Network security: Restrict NTLM: Audit NTLM authentication in this domain -> Enable all (3)
+        Set-GPRegistryValue -Guid $guid -Key 'HKLM\SYSTEM\CurrentControlSet\Control\Lsa' -ValueName 'AuditNtlmAuthenticationInDomain' -Type DWord -Value 3 -ErrorAction Stop
+
+        # Network security: Restrict NTLM: Outgoing NTLM traffic to remote servers -> Audit all (1)
+        Set-GPRegistryValue -Guid $guid -Key 'HKLM\SYSTEM\CurrentControlSet\Control\Lsa\MSV1_0' -ValueName 'RestrictSendingNTLMTraffic' -Type DWord -Value 1 -ErrorAction Stop
+
+        # Event Log Service > Security and Directory Service log maximum size (KB) via Group Policy.
+        # MaxSize REG_DWORD is stored in KB: <GB> * 1048576 (e.g. 2 GB = 2097152 KB).
+        $maxLogSizeKb = $MaxLogSize * 1048576
+        Set-GPRegistryValue -Guid $guid -Key 'HKLM\SOFTWARE\Policies\Microsoft\Windows\EventLog\Security' -ValueName 'MaxSize' -Type DWord -Value $maxLogSizeKb -ErrorAction Stop
+        Set-GPRegistryValue -Guid $guid -Key 'HKLM\SOFTWARE\Policies\Microsoft\Windows\EventLog\Directory Service' -ValueName 'MaxSize' -Type DWord -Value $maxLogSizeKb -ErrorAction Stop
+    } catch {
+        throw "Failed to apply registry-based settings to GPO '$Name': $($_.Exception.Message)"
     }
 
     Write-Host "Audit settings applied to '$Name' (GUID: $guid)." -ForegroundColor Green
