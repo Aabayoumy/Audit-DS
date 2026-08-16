@@ -137,11 +137,11 @@ Lists domain controllers with specific details.
 
 ### New-AuditGPO
 
-Creates a new GPO (not linked) by restoring the bundled `_Audit-NTLM-Ldap` GPO backup (`AuditModule\GPO\<BackupID>`).
+Creates a new GPO (not linked) named `_Audit-NTLM-Ldap` programmatically — no GPO backup or `Import-GPO` required.
 
 - `-Name`: GPO display name (default: `_Audit-NTLM-Ldap`).
-- Restores via `Import-GPO` into the **current** AD domain.
-- Creates the GPO and does **not** link it.
+- Creates the GPO in the **current** AD domain and does **not** link it.
+- Writes the GPO's `GptTmpl.inf` (Security Settings) and Group Policy Preference `Registry.xml` directly into SYSVOL, then bumps the GPO version so clients pick it up.
 - The GPO configures:
 
   | Setting | Value |

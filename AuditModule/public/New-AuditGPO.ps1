@@ -8,22 +8,25 @@ function New-AuditGPO {
         [switch]$h
     )
 
-    if ($Help -or $h -or ($Args.Count -gt 0 -and $Args[0] -notin @('-h', '-help', '-Name'))) {
-        Write-Host 'Creates a new (unlinked) GPO by restoring the bundled _Audit-NTLM-Ldap GPO backup.'
-        Write-Host 'The GPO enables NTLM auditing (Security Options), sets the Security log to 2 GB, and enables LDAP diagnostics auditing (Registry preference).'
+    if ($Help -or $h) {
+        Write-Host 'Creates a new (unlinked) GPO that enables NTLM auditing and LDAP interface event logging.'
+        Write-Host 'The GPO configures:'
+        Write-Host '  - Network security: Restrict NTLM: Audit Incoming NTLM Traffic (enable auditing for all accounts)'
+        Write-Host '  - Network security: Restrict NTLM: Outgoing NTLM traffic to remote servers (audit all)'
+        Write-Host '  - Network security: Restrict NTLM: Audit NTLM authentication in this domain (enable all)'
+        Write-Host '  - Event Log Service Security log maximum size: 2 GB (2097152 KB)'
+        Write-Host '  - Registry preference HKLM\SYSTEM\CurrentControlSet\Services\NTDS\Diagnostics\16 LDAP Interface Events = 2'
         Write-Host '-Name: GPO display name (default: _Audit-NTLM-Ldap).'
-        Write-Host 'Always restores into the current AD domain.'
+        Write-Host 'Always creates the GPO in the current AD domain. The GPO is NOT linked.'
         return
     }
 
-    # Ensure the GroupPolicy module is available
     if (-not (Get-Module -Name GroupPolicy -ListAvailable)) {
         Write-Error "GroupPolicy module is required but not found. Install RSAT Group Policy Management features first."
         return
     }
     Import-Module GroupPolicy -ErrorAction Stop
 
-    # Ensure the ActiveDirectory module is available
     if (-not (Get-Module -Name ActiveDirectory -ListAvailable)) {
         Write-Error "ActiveDirectory module is required but not found."
         return
@@ -32,41 +35,64 @@ function New-AuditGPO {
 
     $domainFqdn = (Get-ADDomain).DNSRoot
 
-    # Create only a NEW GPO - never overwrite an existing one
     if (Get-GPO -Name $Name -Domain $domainFqdn -ErrorAction SilentlyContinue) {
         Write-Error "A GPO named '$Name' already exists in $domainFqdn. Delete it or use a different -Name."
         return
     }
 
-    # Locate the bundled GPO backup shipped with the module
-    $candidateRoots = @(
-        (Join-Path -Path (Split-Path -Path $PSScriptRoot -Parent) -ChildPath 'GPO'),
-        (Join-Path -Path $PSScriptRoot -ChildPath 'GPO'),
-        (Join-Path -Path $PSScriptRoot -ChildPath 'AuditModule\GPO')
-    )
-    $backupRoot = $candidateRoots | Where-Object { Test-Path -Path $_ -PathType Container } | Select-Object -First 1
-    if (-not $backupRoot) {
-        Write-Error "GPO backup folder not found. Checked: $($candidateRoots -join ', '). The module may be missing files."
-        return
-    }
-    $backupFolder = Get-ChildItem -Path $backupRoot -Directory |
-        Where-Object { $_.Name -match '^\{[0-9a-fA-F-]{36}\}$' } |
-        Select-Object -First 1
-    if (-not $backupFolder) {
-        Write-Error "No GPO backup folder found under '$backupRoot'. Expected a folder named like '{GUID}'."
-        return
-    }
-    $backupId = $backupFolder.Name
-
-    Write-Verbose "Restoring GPO backup '$backupId' as '$Name' in domain $domainFqdn"
+    Write-Verbose "Creating GPO '$Name' in domain $domainFqdn"
     try {
-        $gpo = Import-GPO -BackupId $backupId -TargetName $Name -Path $backupRoot -Domain $domainFqdn -CreateIfNeeded -ErrorAction Stop
+        $gpo = New-GPO -Name $Name -Domain $domainFqdn -ErrorAction Stop
     } catch {
-        throw "Failed to restore GPO '$Name' from backup: $($_.Exception.Message)"
+        throw "Failed to create GPO '$Name': $($_.Exception.Message)"
     }
 
-    Write-Host "Audit GPO '$Name' created from bundled backup (not linked)." -ForegroundColor Green
-    Write-Host "The GPO was NOT linked. Don't forget to review and link the GPO." -ForegroundColor Green
+    try {
+        $gpoSysvol = "\\$domainFqdn\SYSVOL\sysvol\$domainFqdn\Policies\$($gpo.Id)\Machine"
 
-    return $gpo
+        $secEditDir = Join-Path $gpoSysvol 'Microsoft\Windows NT\SecEdit'
+        New-Item -ItemType Directory -Path $secEditDir -Force | Out-Null
+        $gptTmpl = @"
+[Unicode]
+Unicode=yes
+[Security Log]
+MaximumLogSize = 2097152
+[Registry Values]
+MACHINE\System\CurrentControlSet\Control\Lsa\MSV1_0\AuditReceivingNTLMTraffic=4,2
+MACHINE\System\CurrentControlSet\Control\Lsa\MSV1_0\RestrictSendingNTLMTraffic=4,1
+MACHINE\System\CurrentControlSet\Services\Netlogon\Parameters\AuditNTLMInDomain=4,7
+[Version]
+signature="`$CHICAGO`$"
+Revision=1
+"@
+        Set-Content -Path (Join-Path $secEditDir 'GptTmpl.inf') -Value $gptTmpl -Encoding Unicode
+
+        $regPrefDir = Join-Path $gpoSysvol 'Preferences\Registry'
+        New-Item -ItemType Directory -Path $regPrefDir -Force | Out-Null
+        $uid = [guid]::NewGuid().ToString('D').ToUpper()
+        $changed = (Get-Date).ToString('yyyy-MM-dd HH:mm:ss')
+        $regXml = @"
+<?xml version="1.0" encoding="utf-8"?>
+<RegistrySettings clsid="{A3CCFC41-DFDB-43a5-8D26-0FE8B954DA51}">
+  <Registry clsid="{9CD4B2F4-923D-47f5-A062-E897DD1DAD50}" name="16 LDAP Interface Events" status="16 LDAP Interface Events" image="12" changed="$changed" uid="{$uid}">
+    <Properties action="U" displayDecimal="1" default="0" hive="HKEY_LOCAL_MACHINE" key="SYSTEM\CurrentControlSet\Services\NTDS\Diagnostics" name="16 LDAP Interface Events" type="REG_DWORD" value="00000002"/>
+  </Registry>
+</RegistrySettings>
+"@
+        Set-Content -Path (Join-Path $regPrefDir 'Registry.xml') -Value $regXml -Encoding UTF8
+
+        $gpoDn = "CN=$($gpo.Id),CN=Policies,CN=System,$((Get-ADDomain).DistinguishedName)"
+        $adGpo = Get-ADObject -Identity $gpoDn -Properties versionNumber
+        Set-ADObject -Identity $gpoDn -Replace @{
+            versionNumber = [int]$adGpo.versionNumber + 0x10000
+        }
+
+        Write-Host "Audit GPO '$Name' created and saved ($($gpo.Id))." -ForegroundColor Green
+        Write-Host "The GPO was NOT linked. Don't forget to review and link the GPO." -ForegroundColor Green
+
+        return $gpo
+    } catch {
+        try { Remove-GPO -Guid $gpo.Id -Domain $domainFqdn -ErrorAction SilentlyContinue } catch {}
+        throw "Failed to configure GPO '$Name': $($_.Exception.Message)"
+    }
 }
