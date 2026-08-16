@@ -137,22 +137,23 @@ Lists domain controllers with specific details.
 
 ### New-AuditGPO
 
-Creates a new GPO (not linked) that enables NTLM and LDAP auditing and sets event log sizes via Group Policy.
+Creates a new GPO (not linked) by restoring the bundled `_Audit-NTLM-Ldap` GPO backup (`AuditModule\GPO\<BackupID>`).
 
 - `-Name`: GPO display name (default: `_Audit-NTLM-Ldap`).
-- `-Domain`: Domain FQDN. If omitted, the current AD domain is used.
-- `-MaxLogSize`: Security and Directory Service event log size in GB (Valid: 2, 3, or 4. Default: 2). Set through Group Policy (`EventLog\Security\MaxSize` and `EventLog\Directory Service\MaxSize`, in KB), replacing the old per-DC `Set-LogSize` function.
+- `-Domain`: Target domain FQDN. If omitted, the current AD domain is used.
+- Restores via `Import-GPO`, so domain-specific values are converted to the target domain.
 - Creates the GPO and does **not** link it.
-- Sets the following NTLM audit settings (Security Options):
+- The GPO configures:
 
-  | Setting | Value | Registry value |
-  | --- | --- | --- |
-  | Network security: Restrict NTLM: Audit Incoming NTLM Traffic | Enable auditing for all accounts | `Lsa\MSV1_0\AuditReceivingNTLMTraffic` = `2` |
-  | Network security: Restrict NTLM: Audit NTLM authentication in this domain | Enable all | `Lsa\AuditNtlmAuthenticationInDomain` = `3` |
-  | Network security: Restrict NTLM: Outgoing NTLM traffic to remote servers | Audit all | `Lsa\MSV1_0\RestrictSendingNTLMTraffic` = `1` |
+  | Setting | Value |
+  | --- | --- |
+  | Network security: Restrict NTLM: Audit Incoming NTLM Traffic | Enable auditing for all accounts |
+  | Network security: Restrict NTLM: Audit NTLM authentication in this domain | Enable all |
+  | Network security: Restrict NTLM: Outgoing NTLM traffic to remote servers | Audit all |
+  | Event Log Service Security log maximum size | 2 GB (2097152 KB) |
+  | Registry preference `HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\NTDS\Diagnostics` → `16 LDAP Interface Events` | `2` (Decimal, `REG_DWORD`) |
 
-- Adds a Registry preference (GPP) item: `HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\NTDS\Diagnostics`, value `16 LDAP Interface Events` = `2` (Decimal, `REG_DWORD`).
-- Requires the RSAT Group Policy Management and AD DS modules, plus admin rights to create GPOs and write to SYSVOL.
+- Requires the RSAT Group Policy Management and AD DS modules, plus admin rights to create GPOs.
 
 ## Usage
 

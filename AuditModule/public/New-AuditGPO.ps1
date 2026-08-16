@@ -7,19 +7,15 @@ function New-AuditGPO {
         [Parameter(Mandatory = $false)]
         [string]$Domain,
 
-        [Parameter(Mandatory = $false)]
-        [ValidateSet(2, 3, 4)]
-        [int]$MaxLogSize = 2,
-
         [switch]$Help,
         [switch]$h
     )
 
-    if ($Help -or $h -or ($Args.Count -gt 0 -and $Args[0] -notin @('-h', '-help', '-Name', '-Domain', '-MaxLogSize'))) {
-        Write-Host 'Creates a new (unlinked) GPO that enables NTLM and LDAP auditing.'
+    if ($Help -or $h -or ($Args.Count -gt 0 -and $Args[0] -notin @('-h', '-help', '-Name', '-Domain'))) {
+        Write-Host 'Creates a new (unlinked) GPO by restoring the bundled _Audit-NTLM-Ldap GPO backup.'
+        Write-Host 'The GPO enables NTLM auditing (Security Options), sets the Security log to 2 GB, and enables LDAP diagnostics auditing (Registry preference).'
         Write-Host '-Name: GPO display name (default: _Audit-NTLM-Ldap).'
-        Write-Host '-Domain: Domain FQDN. If omitted, the current AD domain is used.'
-        Write-Host '-MaxLogSize: Security and Directory Service event log size in GB (Valid: 2, 3, or 4. Default: 2).'
+        Write-Host '-Domain: Target domain FQDN. If omitted, the current AD domain is used.'
         return
     }
 
@@ -42,79 +38,35 @@ function New-AuditGPO {
         $domainFqdn = (Get-ADDomain).DNSRoot
     }
 
-    # Create the GPO (not linked)
-    Write-Verbose "Creating GPO '$Name' in domain $domainFqdn"
+    # Create only a NEW GPO - never overwrite an existing one
     if (Get-GPO -Name $Name -Domain $domainFqdn -ErrorAction SilentlyContinue) {
-        Write-Error "A GPO named '$Name' already exists. Delete it or use a different -Name."
+        Write-Error "A GPO named '$Name' already exists in $domainFqdn. Delete it or use a different -Name."
         return
     }
-    try {
-        $gpo = New-GPO -Name $Name -Domain $domainFqdn -ErrorAction Stop
-    } catch {
-        throw "Failed to create GPO '$Name': $($_.Exception.Message)"
+
+    # Locate the bundled GPO backup shipped with the module
+    $backupRoot = Join-Path -Path $PSScriptRoot -ChildPath 'GPO'
+    if (-not (Test-Path $backupRoot)) {
+        Write-Error "GPO backup folder not found at '$backupRoot'. The module may be missing files."
+        return
     }
-    Write-Host "GPO '$Name' created (not linked)." -ForegroundColor Cyan
+    $backupFolder = Get-ChildItem -Path $backupRoot -Directory |
+        Where-Object { $_.Name -match '^\{[0-9a-fA-F-]{36}\}$' } |
+        Select-Object -First 1
+    if (-not $backupFolder) {
+        Write-Error "No GPO backup folder found under '$backupRoot'. Expected a folder named like '{GUID}'."
+        return
+    }
+    $backupId = $backupFolder.Name
 
-    $guid = $gpo.Id
-
-    # Write the LDAP Interface Events registry preference (GPP) directly to SYSVOL first.
-    # No GroupPolicy module cmdlet supports GPP registry items, so we author Registry.xml.
-    # Writing it before Set-GPRegistryValue lets the module's version bumps keep AD and
-    # SysVol versions in sync, so no manual versionNumber update is required.
+    Write-Verbose "Restoring GPO backup '$backupId' as '$Name' in domain $domainFqdn"
     try {
-        $prefDir = "\\$domainFqdn\SysVol\$domainFqdn\Policies\{$guid}\Machine\Preferences\Registry"
-        $registryXml = Join-Path -Path $prefDir -ChildPath 'Registry.xml'
-
-        if (-not (Test-Path $prefDir)) {
-            New-Item -ItemType Directory -Path $prefDir -Force | Out-Null
-        }
-
-        $changed   = Get-Date -Format 'yyyy-MM-dd HH:mm:ss'
-        $uid       = '{' + [Guid]::NewGuid().ToString().ToUpper() + '}'
-
-        $item = @"
-<Registry clsid="{9CD4B2F4-923D-47f9-A542-DE1B8A96B7FE}" name="16 LDAP Interface Events" status="S" image="1" changed="$changed" uid="$uid">
-    <Properties action="U" displayDecimal="1" defaultHidden="0" hive="HKEY_LOCAL_MACHINE" key="SYSTEM\CurrentControlSet\Services\NTDS\Diagnostics" valueName="16 LDAP Interface Events" value="2" type="REG_DWORD"/>
-</Registry>
-"@
-
-        if (Test-Path $registryXml) {
-            $content = [System.IO.File]::ReadAllText($registryXml)
-            $content = $content.Replace('</RegistrySettings>', $item + "`r`n" + '</RegistrySettings>')
-            [System.IO.File]::WriteAllText($registryXml, $content, (New-Object System.Text.UTF8Encoding($false)))
-        } else {
-            $fullXml = @"
-<?xml version="1.0" encoding="utf-8"?>
-<RegistrySettings clsid="{9CD4B2F4-923D-47f9-A542-DE1B8A96B7FE}">
-$item</RegistrySettings>
-"@
-            [System.IO.File]::WriteAllText($registryXml, $fullXml, (New-Object System.Text.UTF8Encoding($false)))
-        }
+        $gpo = Import-GPO -BackupId $backupId -TargetName $Name -Path $backupRoot -Domain $domainFqdn -CreateIfNeeded -ErrorAction Stop
     } catch {
-        Write-Warning "LDAP registry preference could not be written: $($_.Exception.Message)"
+        throw "Failed to restore GPO '$Name' from backup: $($_.Exception.Message)"
     }
 
-    try {
-        # Network security: Restrict NTLM: Audit Incoming NTLM Traffic -> Enable auditing for all accounts (2)
-        Set-GPRegistryValue -Guid $guid -Key 'HKLM\SYSTEM\CurrentControlSet\Control\Lsa\MSV1_0' -ValueName 'AuditReceivingNTLMTraffic' -Type DWord -Value 2 -ErrorAction Stop
-
-        # Network security: Restrict NTLM: Audit NTLM authentication in this domain -> Enable all (3)
-        Set-GPRegistryValue -Guid $guid -Key 'HKLM\SYSTEM\CurrentControlSet\Control\Lsa' -ValueName 'AuditNtlmAuthenticationInDomain' -Type DWord -Value 3 -ErrorAction Stop
-
-        # Network security: Restrict NTLM: Outgoing NTLM traffic to remote servers -> Audit all (1)
-        Set-GPRegistryValue -Guid $guid -Key 'HKLM\SYSTEM\CurrentControlSet\Control\Lsa\MSV1_0' -ValueName 'RestrictSendingNTLMTraffic' -Type DWord -Value 1 -ErrorAction Stop
-
-        # Event Log Service > Security and Directory Service log maximum size (KB) via Group Policy.
-        # MaxSize REG_DWORD is stored in KB: <GB> * 1048576 (e.g. 2 GB = 2097152 KB).
-        $maxLogSizeKb = $MaxLogSize * 1048576
-        Set-GPRegistryValue -Guid $guid -Key 'HKLM\SOFTWARE\Policies\Microsoft\Windows\EventLog\Security' -ValueName 'MaxSize' -Type DWord -Value $maxLogSizeKb -ErrorAction Stop
-        Set-GPRegistryValue -Guid $guid -Key 'HKLM\SOFTWARE\Policies\Microsoft\Windows\EventLog\Directory Service' -ValueName 'MaxSize' -Type DWord -Value $maxLogSizeKb -ErrorAction Stop
-    } catch {
-        throw "Failed to apply registry-based settings to GPO '$Name': $($_.Exception.Message)"
-    }
-
-    Write-Host "Audit settings applied to '$Name' (GUID: $guid)." -ForegroundColor Green
-    Write-Host "Security and Directory Service log max size set to $MaxLogSize GB via Group Policy (not linked)." -ForegroundColor Green
+    Write-Host "Audit GPO '$Name' created from bundled backup (not linked)." -ForegroundColor Green
     Write-Host "The GPO was NOT linked. Don't forget to review and link the GPO." -ForegroundColor Green
 
     return $gpo
