@@ -39,9 +39,14 @@ function New-AuditGPO {
     }
 
     # Locate the bundled GPO backup shipped with the module
-    $backupRoot = Join-Path -Path $PSScriptRoot -ChildPath 'GPO'
-    if (-not (Test-Path $backupRoot)) {
-        Write-Error "GPO backup folder not found at '$backupRoot'. The module may be missing files."
+    $candidateRoots = @(
+        (Join-Path -Path (Split-Path -Path $PSScriptRoot -Parent) -ChildPath 'GPO'),
+        (Join-Path -Path $PSScriptRoot -ChildPath 'GPO'),
+        (Join-Path -Path $PSScriptRoot -ChildPath 'AuditModule\GPO')
+    )
+    $backupRoot = $candidateRoots | Where-Object { Test-Path -Path $_ -PathType Container } | Select-Object -First 1
+    if (-not $backupRoot) {
+        Write-Error "GPO backup folder not found. Checked: $($candidateRoots -join ', '). The module may be missing files."
         return
     }
     $backupFolder = Get-ChildItem -Path $backupRoot -Directory |
