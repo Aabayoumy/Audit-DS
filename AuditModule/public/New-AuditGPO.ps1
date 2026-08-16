@@ -81,7 +81,7 @@ Revision=1
 "@
         Set-Content -Path (Join-Path $regPrefDir 'Registry.xml') -Value $regXml -Encoding UTF8
 
-        $gpoDn = "CN=$($gpo.Id),CN=Policies,CN=System,$((Get-ADDomain).DistinguishedName)"
+        $gpoDn = "CN=$($gpo.Id.ToString('B')),CN=Policies,CN=System,$((Get-ADDomain).DistinguishedName)"
         $adGpo = Get-ADObject -Identity $gpoDn -Properties versionNumber
         Set-ADObject -Identity $gpoDn -Replace @{
             versionNumber = [int]$adGpo.versionNumber + 0x10000
