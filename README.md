@@ -142,6 +142,25 @@ Sets the maximum size for Security and Directory Service event logs on domain co
 - `-Size`: Specifies the maximum log size in GB (Valid: 2, 3, or 4. Default: 2).
 - `-IgnoredDCs`: Specifies one or more Domain Controller names to ignore (e.g., 'DC1', 'DC2', 'DC3').
 
+### New-AuditGPO
+
+Creates a new GPO (not linked) that enables NTLM and LDAP auditing.
+
+- `-Name`: GPO display name (default: `_Audit-NTLM-Ldap`).
+- `-Domain`: Domain FQDN. If omitted, the current AD domain is used.
+- Creates the GPO and does **not** link it.
+- Sets the following NTLM audit settings (Security Options):
+
+  | Setting | Value | Registry value |
+  | --- | --- | --- |
+  | Network security: Restrict NTLM: Audit Incoming NTLM Traffic | Enable auditing for all accounts | `Lsa\MSV1_0\AuditReceivingNTLMTraffic` = `2` |
+  | Network security: Restrict NTLM: Audit NTLM authentication in this domain | Enable all | `Lsa\AuditNtlmAuthenticationInDomain` = `3` |
+  | Network security: Restrict NTLM: Outgoing NTLM traffic to remote servers | Audit all | `Lsa\MSV1_0\RestrictSendingNTLMTraffic` = `1` |
+
+- Sets the Event Log Service Security log maximum size to 2 GB (`EventLog\Security\MaxSize` = `2097152` KB).
+- Adds a Registry preference (GPP) item: `HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\NTDS\Diagnostics`, value `16 LDAP Interface Events` = `2` (Decimal, `REG_DWORD`).
+- Requires the RSAT Group Policy Management and AD DS modules, plus admin rights to create GPOs and write to SYSVOL.
+
 ## Usage
 
 - Download latest release from https://github.com/Aabayoumy/Audit-DS/releases/latest
