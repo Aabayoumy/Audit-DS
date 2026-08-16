@@ -7,14 +7,19 @@ function New-AuditGPO {
         [Parameter(Mandatory = $false)]
         [string]$Domain,
 
+        [Parameter(Mandatory = $false)]
+        [ValidateSet(2, 3, 4)]
+        [int]$MaxLogSize = 2,
+
         [switch]$Help,
         [switch]$h
     )
 
-    if ($Help -or $h -or ($Args.Count -gt 0 -and $Args[0] -notin @('-h', '-help', '-Name', '-Domain'))) {
+    if ($Help -or $h -or ($Args.Count -gt 0 -and $Args[0] -notin @('-h', '-help', '-Name', '-Domain', '-MaxLogSize'))) {
         Write-Host 'Creates a new (unlinked) GPO that enables NTLM and LDAP auditing.'
         Write-Host '-Name: GPO display name (default: _Audit-NTLM-Ldap).'
         Write-Host '-Domain: Domain FQDN. If omitted, the current AD domain is used.'
+        Write-Host '-MaxLogSize: Security and Directory Service event log size in GB (Valid: 2, 3, or 4. Default: 2).'
         return
     }
 
@@ -62,8 +67,11 @@ function New-AuditGPO {
         # Network security: Restrict NTLM: Outgoing NTLM traffic to remote servers -> Audit all (1)
         Set-GPRegistryValue -Guid $guid -Key 'HKLM\SYSTEM\CurrentControlSet\Control\Lsa\MSV1_0' -ValueName 'RestrictSendingNTLMTraffic' -Type DWord -Value 1 -ErrorAction Stop
 
-        # Event Log Service > Security log maximum size (KB) -> 2 GB (2097152 KB)
-        Set-GPRegistryValue -Guid $guid -Key 'HKLM\SOFTWARE\Policies\Microsoft\Windows\EventLog\Security' -ValueName 'MaxSize' -Type DWord -Value 2097152 -ErrorAction Stop
+        # Event Log Service > Security and Directory Service log maximum size (KB) via Group Policy.
+        # MaxSize REG_DWORD is stored in KB: <GB> * 1048576 (e.g. 2 GB = 2097152 KB).
+        $maxLogSizeKb = $MaxLogSize * 1048576
+        Set-GPRegistryValue -Guid $guid -Key 'HKLM\SOFTWARE\Policies\Microsoft\Windows\EventLog\Security' -ValueName 'MaxSize' -Type DWord -Value $maxLogSizeKb -ErrorAction Stop
+        Set-GPRegistryValue -Guid $guid -Key 'HKLM\SOFTWARE\Policies\Microsoft\Windows\EventLog\Directory Service' -ValueName 'MaxSize' -Type DWord -Value $maxLogSizeKb -ErrorAction Stop
     } catch {
         throw "Failed to apply registry-based settings to GPO '$Name': $($_.Exception.Message)"
     }
@@ -123,6 +131,7 @@ $item</RegistrySettings>
     }
 
     Write-Host "Audit settings applied to '$Name' (GUID: $guid)." -ForegroundColor Green
+    Write-Host "Security and Directory Service log max size set to $MaxLogSize GB via Group Policy (not linked)." -ForegroundColor Green
     Write-Host "The GPO was NOT linked. Don't forget to review and link the GPO." -ForegroundColor Green
 
     return $gpo

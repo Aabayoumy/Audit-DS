@@ -20,7 +20,7 @@
     # Minimum version of the common language runtime (CLR) required by this module.
     # ProcessorArchitecture = 'None'
     # Processor architecture that this module is built for.
-    FunctionsToExport = @('Export-NTLMEvents', 'Export-LDAPEvents', 'Export-ADInfo' , 'Export-UserSecurity', 'Get-DCs' , 'Export-AdminUsers' , 'Enable-Audit', 'Export-ComputersOS', 'Set-LogSize', 'Get-LdapServerCertificate', 'Install-PingCastle', 'Start-PingCastle', 'Export-RC4Tickets', 'Export-Assesment', 'New-AuditGPO')
+    FunctionsToExport = @('Export-NTLMEvents', 'Export-LDAPEvents', 'Export-ADInfo' , 'Export-UserSecurity', 'Get-DCs' , 'Export-AdminUsers' , 'Enable-Audit', 'Export-ComputersOS', 'Get-LdapServerCertificate', 'Install-PingCastle', 'Start-PingCastle', 'Export-RC4Tickets', 'Export-Assesment', 'New-AuditGPO')
     # List of functions to export from this module.
     # CmdletsToExport = @()
     # List of cmdlets to export from this module.

@@ -135,19 +135,13 @@ Runs PingCastle in command-line mode and recommends the silent healthcheck comma
 
 Lists domain controllers with specific details.
 
-### Set-LogSize
-
-Sets the maximum size for Security and Directory Service event logs on domain controllers.
-
-- `-Size`: Specifies the maximum log size in GB (Valid: 2, 3, or 4. Default: 2).
-- `-IgnoredDCs`: Specifies one or more Domain Controller names to ignore (e.g., 'DC1', 'DC2', 'DC3').
-
 ### New-AuditGPO
 
-Creates a new GPO (not linked) that enables NTLM and LDAP auditing.
+Creates a new GPO (not linked) that enables NTLM and LDAP auditing and sets event log sizes via Group Policy.
 
 - `-Name`: GPO display name (default: `_Audit-NTLM-Ldap`).
 - `-Domain`: Domain FQDN. If omitted, the current AD domain is used.
+- `-MaxLogSize`: Security and Directory Service event log size in GB (Valid: 2, 3, or 4. Default: 2). Set through Group Policy (`EventLog\Security\MaxSize` and `EventLog\Directory Service\MaxSize`, in KB), replacing the old per-DC `Set-LogSize` function.
 - Creates the GPO and does **not** link it.
 - Sets the following NTLM audit settings (Security Options):
 
@@ -157,7 +151,6 @@ Creates a new GPO (not linked) that enables NTLM and LDAP auditing.
   | Network security: Restrict NTLM: Audit NTLM authentication in this domain | Enable all | `Lsa\AuditNtlmAuthenticationInDomain` = `3` |
   | Network security: Restrict NTLM: Outgoing NTLM traffic to remote servers | Audit all | `Lsa\MSV1_0\RestrictSendingNTLMTraffic` = `1` |
 
-- Sets the Event Log Service Security log maximum size to 2 GB (`EventLog\Security\MaxSize` = `2097152` KB).
 - Adds a Registry preference (GPP) item: `HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\NTDS\Diagnostics`, value `16 LDAP Interface Events` = `2` (Decimal, `REG_DWORD`).
 - Requires the RSAT Group Policy Management and AD DS modules, plus admin rights to create GPOs and write to SYSVOL.
 
