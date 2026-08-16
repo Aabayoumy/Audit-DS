@@ -33,7 +33,9 @@ function New-AuditGPO {
     }
     Import-Module ActiveDirectory -ErrorAction Stop
 
-    $domainFqdn = (Get-ADDomain).DNSRoot
+    $domain = Get-ADDomain
+    $domainFqdn = $domain.DNSRoot
+    $pdcHost = $domain.PDCEmulator
 
     if (Get-GPO -Name $Name -Domain $domainFqdn -ErrorAction SilentlyContinue) {
         Write-Error "A GPO named '$Name' already exists in $domainFqdn. Delete it or use a different -Name."
@@ -82,12 +84,16 @@ Revision=1
         Set-Content -Path (Join-Path $regPrefDir 'Registry.xml') -Value $regXml -Encoding UTF8
 
         $gpoIdString = $gpo.Id.ToString()
-        $adGpo = Get-ADObject -Filter "objectGUID -eq '$gpoIdString'" -Properties versionNumber -ErrorAction Stop
-        if (-not $adGpo) {
-            throw "GPO AD container not found for GUID $gpoIdString. Confirm the GPO was created and AD replication completed."
+        $adGpo = $null
+        for ($i = 0; $i -lt 15 -and -not $adGpo; $i++) {
+            $adGpo = Get-ADObject -Server $pdcHost -Filter "objectGUID -eq '$gpoIdString'" -Properties versionNumber -ErrorAction SilentlyContinue
+            if (-not $adGpo) { Start-Sleep -Seconds 2 }
         }
-        Write-Verbose "Bumping GPO version at $($adGpo.DistinguishedName)"
-        Set-ADObject -Identity $adGpo.DistinguishedName -Replace @{
+        if (-not $adGpo) {
+            throw "GPO AD container not found for GUID $gpoIdString on PDC $pdcHost. Confirm the GPO was created and AD replication completed."
+        }
+        Write-Verbose "Bumping GPO version at $($adGpo.DistinguishedName) on $pdcHost"
+        Set-ADObject -Server $pdcHost -Identity $adGpo.DistinguishedName -Replace @{
             versionNumber = [int]$adGpo.versionNumber + 0x10000
         }
 
