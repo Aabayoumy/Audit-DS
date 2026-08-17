@@ -10,14 +10,16 @@ function New-AuditGPO {
 
     if ($Help -or $h) {
         Write-Host 'Creates a new (unlinked) GPO that enables NTLM auditing and LDAP interface event logging.'
-        Write-Host 'The GPO configures:'
-        Write-Host '  - Network security: Restrict NTLM: Audit Incoming NTLM Traffic (enable auditing for all accounts)'
-        Write-Host '  - Network security: Restrict NTLM: Outgoing NTLM traffic to remote servers (audit all)'
-        Write-Host '  - Network security: Restrict NTLM: Audit NTLM authentication in this domain (enable all)'
-        Write-Host '  - Event Log Service Security log maximum size: 2 GB (2097152 KB)'
-        Write-Host '  - Registry preference HKLM\SYSTEM\CurrentControlSet\Services\NTDS\Diagnostics\16 LDAP Interface Events = 2'
+        Write-Host 'The GPO configures (all applied as Computer Preferences > Registry items):'
+        Write-Host '  - Lsa\MSV1_0\AuditReceivingNTLMTraffic = 2   (Audit Incoming NTLM Traffic: enable for all accounts)'
+        Write-Host '  - Lsa\MSV1_0\RestrictSendingNTLMTraffic = 1  (Outgoing NTLM traffic to remote servers: audit all)'
+        Write-Host '  - Netlogon\Parameters\AuditNTLMInDomain = 7  (Audit NTLM authentication in this domain: enable all)'
+        Write-Host '  - EventLog\Security\MaxSize = 2147483648     (Security log max size: 2 GB, in bytes)'
+        Write-Host '  - NTDS\Diagnostics\16 LDAP Interface Events = 2'
         Write-Host '-Name: GPO display name (default: _Audit-NTLM-Ldap).'
         Write-Host 'Always creates the GPO in the current AD domain. The GPO is NOT linked.'
+        Write-Host 'NOTE: these are applied as Group Policy Preferences, not native Security Options, so they'
+        Write-Host '      will NOT auto-revert if the GPO is later unlinked/deleted.'
         return
     }
 
@@ -35,73 +37,45 @@ function New-AuditGPO {
 
     $domain = Get-ADDomain
     $domainFqdn = $domain.DNSRoot
-    $pdcHost = $domain.PDCEmulator
 
-    if (Get-GPO -Name $Name -Domain $domainFqdn -ErrorAction SilentlyContinue) {
-        Write-Error "A GPO named '$Name' already exists in $domainFqdn. Delete it or use a different -Name."
+    # --- GPO name collision check ---
+    $existing = Get-GPO -Name $Name -Domain $domainFqdn -ErrorAction SilentlyContinue
+    if ($existing) {
+        Write-Error "A GPO named '$Name' already exists in $domainFqdn (Id: $($existing.Id)). Delete it or use a different -Name."
         return
     }
 
     Write-Verbose "Creating GPO '$Name' in domain $domainFqdn"
     try {
         $gpo = New-GPO -Name $Name -Domain $domainFqdn -ErrorAction Stop
-    } catch {
+    }
+    catch {
         throw "Failed to create GPO '$Name': $($_.Exception.Message)"
     }
 
+    # Each entry: registry key path, value name, DWord data, friendly label for -Verbose output
+    $prefValues = @(
+        @{ Key = 'HKLM\SYSTEM\CurrentControlSet\Control\Lsa\MSV1_0'; Name = 'AuditReceivingNTLMTraffic'; Value = 2; Label = 'Audit Incoming NTLM Traffic' }
+        @{ Key = 'HKLM\SYSTEM\CurrentControlSet\Control\Lsa\MSV1_0'; Name = 'RestrictSendingNTLMTraffic'; Value = 1; Label = 'Outgoing NTLM traffic to remote servers (audit)' }
+        @{ Key = 'HKLM\SYSTEM\CurrentControlSet\Services\Netlogon\Parameters'; Name = 'AuditNTLMInDomain'; Value = 7; Label = 'Audit NTLM authentication in this domain' }
+        @{ Key = 'HKLM\SYSTEM\CurrentControlSet\Services\EventLog\Security'; Name = 'MaxSize'; Value = 2147483648; Label = 'Security log maximum size (2 GB)' }
+        @{ Key = 'HKLM\SYSTEM\CurrentControlSet\Services\NTDS\Diagnostics'; Name = '16 LDAP Interface Events'; Value = 2; Label = 'LDAP Interface Events logging' }
+    )
+
     try {
-        $gpoSysvol = "\\$domainFqdn\SYSVOL\sysvol\$domainFqdn\Policies\$($gpo.Id)\Machine"
-
-        $secEditDir = Join-Path $gpoSysvol 'Microsoft\Windows NT\SecEdit'
-        New-Item -ItemType Directory -Path $secEditDir -Force | Out-Null
-        $gptTmpl = @"
-[Unicode]
-Unicode=yes
-[Security Log]
-MaximumLogSize = 2097152
-[Registry Values]
-MACHINE\System\CurrentControlSet\Control\Lsa\MSV1_0\AuditReceivingNTLMTraffic=4,2
-MACHINE\System\CurrentControlSet\Control\Lsa\MSV1_0\RestrictSendingNTLMTraffic=4,1
-MACHINE\System\CurrentControlSet\Services\Netlogon\Parameters\AuditNTLMInDomain=4,7
-[Version]
-signature="`$CHICAGO`$"
-Revision=1
-"@
-        Set-Content -Path (Join-Path $secEditDir 'GptTmpl.inf') -Value $gptTmpl -Encoding Unicode
-
-        $regPrefDir = Join-Path $gpoSysvol 'Preferences\Registry'
-        New-Item -ItemType Directory -Path $regPrefDir -Force | Out-Null
-        $uid = [guid]::NewGuid().ToString('D').ToUpper()
-        $changed = (Get-Date).ToString('yyyy-MM-dd HH:mm:ss')
-        $regXml = @"
-<?xml version="1.0" encoding="utf-8"?>
-<RegistrySettings clsid="{A3CCFC41-DFDB-43a5-8D26-0FE8B954DA51}">
-  <Registry clsid="{9CD4B2F4-923D-47f5-A062-E897DD1DAD50}" name="16 LDAP Interface Events" status="16 LDAP Interface Events" image="12" changed="$changed" uid="{$uid}">
-    <Properties action="U" displayDecimal="1" default="0" hive="HKEY_LOCAL_MACHINE" key="SYSTEM\CurrentControlSet\Services\NTDS\Diagnostics" name="16 LDAP Interface Events" type="REG_DWORD" value="00000002"/>
-  </Registry>
-</RegistrySettings>
-"@
-        Set-Content -Path (Join-Path $regPrefDir 'Registry.xml') -Value $regXml -Encoding UTF8
-
-        $gpoIdString = $gpo.Id.ToString()
-        $adGpo = $null
-        for ($i = 0; $i -lt 15 -and -not $adGpo; $i++) {
-            $adGpo = Get-ADObject -Server $pdcHost -Filter "objectGUID -eq '$gpoIdString'" -Properties versionNumber -ErrorAction SilentlyContinue
-            if (-not $adGpo) { Start-Sleep -Seconds 2 }
-        }
-        if (-not $adGpo) {
-            throw "GPO AD container not found for GUID $gpoIdString on PDC $pdcHost. Confirm the GPO was created and AD replication completed."
-        }
-        Write-Verbose "Bumping GPO version at $($adGpo.DistinguishedName) on $pdcHost"
-        Set-ADObject -Server $pdcHost -Identity $adGpo.DistinguishedName -Replace @{
-            versionNumber = [int]$adGpo.versionNumber + 0x10000
+        foreach ($p in $prefValues) {
+            Write-Verbose "Setting $($p.Label): $($p.Key)\$($p.Name) = $($p.Value)"
+            Set-GPPrefRegistryValue -Name $Name -Domain $domainFqdn -Context Computer -Action Update `
+                -Key $p.Key -ValueName $p.Name -Type DWord -Value $p.Value -ErrorAction Stop | Out-Null
         }
 
-        Write-Host "Audit GPO '$Name' created and saved ($($gpo.Id))." -ForegroundColor Green
+        Write-Host "Audit GPO '$Name' created and configured ($($gpo.Id))." -ForegroundColor Green
         Write-Host "The GPO was NOT linked. Don't forget to review and link the GPO." -ForegroundColor Green
+        Write-Host "Note: settings were applied as Preferences, so they will not auto-revert on unlink/delete." -ForegroundColor Yellow
 
         return $gpo
-    } catch {
+    }
+    catch {
         try { Remove-GPO -Guid $gpo.Id -Domain $domainFqdn -ErrorAction SilentlyContinue } catch {}
         throw "Failed to configure GPO '$Name': $($_.Exception.Message)"
     }
