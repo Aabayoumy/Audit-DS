@@ -103,13 +103,23 @@ MACHINE\System\CurrentControlSet\Control\Lsa\MSV1_0\AuditReceivingNTLMTraffic=4,
         # Deliberately NOT forcing -Server $pdcHost here: New-GPO succeeded without it, and forcing a
         # specific DC for the follow-up read/write was causing a consistent (non-transient) failure —
         # let the ActiveDirectory module fall back to its normal default DC targeting instead.
+        #
+        # IMPORTANT: -ErrorAction SilentlyContinue does NOT reliably suppress ADIdentityNotFoundException
+        # from Get-ADObject/Set-ADObject — it's thrown as a terminating .NET exception regardless of
+        # -ErrorAction in several versions of the ActiveDirectory module. That means a loop relying on
+        # -ErrorAction SilentlyContinue never actually retries: it throws straight out on the first miss.
+        # Use real try/catch instead so the retry loop works as intended.
         $adGpo = $null
         for ($i = 0; $i -lt 15 -and -not $adGpo; $i++) {
-            $adGpo = Get-ADObject -Identity $gpo.Id -Properties versionNumber -ErrorAction SilentlyContinue
-            if (-not $adGpo) { Start-Sleep -Seconds 2 }
+            try {
+                $adGpo = Get-ADObject -Identity $gpo.Id -Properties versionNumber -ErrorAction Stop
+            } catch {
+                $adGpo = $null
+                Start-Sleep -Seconds 2
+            }
         }
         if (-not $adGpo) {
-            throw "GPO AD container not found for GUID $gpoGuid. Confirm the GPO was created and AD replication completed."
+            throw "GPO AD container not found for GUID $gpoGuid after repeated attempts. Confirm the GPO was created and AD replication completed."
         }
 
         # New GPO starts at version 0; bump the low 16 bits (computer/machine version) by 1.
