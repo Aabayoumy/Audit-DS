@@ -10,15 +10,17 @@ function New-AuditGPO {
 
     if ($Help -or $h) {
         Write-Host 'Creates a new (unlinked) GPO that enables NTLM auditing and LDAP interface event logging.'
-        Write-Host 'Applied as native Security Options (via GptTmpl.inf), matching a GPO exported from GPMC:'
+        Write-Host 'Applied as native Security Options (GptTmpl.inf):'
         Write-Host '  - Network security: Restrict NTLM: Audit Incoming NTLM Traffic (enable auditing for all accounts)'
         Write-Host '  - Network security: Restrict NTLM: Outgoing NTLM traffic to remote servers (audit all)'
         Write-Host '  - Network security: Restrict NTLM: Audit NTLM authentication in this domain (enable all)'
         Write-Host '  - Event Log Service Security log maximum size: 2 GB (2097152 KB)'
-        Write-Host 'Applied as a Preference (matches how GPMC itself represents this setting, no native policy exists for it):'
+        Write-Host 'Applied as a Preference (no native policy exists for this value):'
         Write-Host '  - Registry HKLM\SYSTEM\CurrentControlSet\Services\NTDS\Diagnostics\16 LDAP Interface Events = 2'
         Write-Host '-Name: GPO display name (default: _Audit-NTLM-Ldap).'
         Write-Host 'Always creates the GPO in the current AD domain. The GPO is NOT linked.'
+        Write-Host 'Self-contained: no GPO backup files are required or shipped; the SYSVOL content is written'
+        Write-Host 'directly under the new GPO''s own GUID after creation.'
         return
     }
 
@@ -34,39 +36,6 @@ function New-AuditGPO {
     }
     Import-Module ActiveDirectory -ErrorAction Stop
 
-    # Merge a {CSE-GUID}{Tool-GUID} pair into an existing gPCMachineExtensionNames value.
-    # CSE GUID pairs must be sorted ascending (case-insensitive) or the client may skip the extension.
-    function Merge-GPCExtensionGuid {
-        param(
-            [AllowNull()][string]$Current,
-            [Parameter(Mandatory)][string]$CseGuid,
-            [Parameter(Mandatory)][string]$ToolGuid
-        )
-        $pairs = [System.Collections.Generic.List[string]]::new()
-        if ($Current) {
-            foreach ($m in [regex]::Matches($Current, '\[(\{[0-9A-Fa-f-]{36}\})(\{[0-9A-Fa-f-]{36}\})\]')) {
-                $pairs.Add("[$($m.Groups[1].Value)$($m.Groups[2].Value)]")
-            }
-        }
-        $alreadyPresent = $pairs | Where-Object { $_ -like "[$CseGuid*" }
-        if (-not $alreadyPresent) {
-            $pairs.Add("[$CseGuid$ToolGuid]")
-        }
-        ($pairs | Sort-Object { ($_ -replace '^\[(\{[0-9A-Fa-f-]+\}).*', '$1').ToUpperInvariant() }) -join ''
-    }
-
-    # Bump only the computer/machine half (low 16 bits) of a packed GPO version number by 1,
-    # rolling into the user half (high 16 bits) on overflow, per MS-GPOL version packing.
-    function Step-GPOVersion {
-        param([int64]$CurrentVersion)
-        if (-not $CurrentVersion) { $CurrentVersion = 0 }
-        $userPart = ($CurrentVersion -shr 16) -band 0xFFFF
-        $machinePart = ($CurrentVersion -band 0xFFFF)
-        $machinePart = ($machinePart + 1) -band 0xFFFF
-        if ($machinePart -eq 0) { $userPart = ($userPart + 1) -band 0xFFFF }
-        [int64](($userPart -shl 16) -bor $machinePart)
-    }
-
     $domain = Get-ADDomain
     $domainFqdn = $domain.DNSRoot
     $pdcHost = $domain.PDCEmulator
@@ -78,28 +47,23 @@ function New-AuditGPO {
         return
     }
 
+    # --- 1. Create the (empty) GPO and grab its GUID ---
     Write-Verbose "Creating GPO '$Name' in domain $domainFqdn"
     try {
         $gpo = New-GPO -Name $Name -Domain $domainFqdn -ErrorAction Stop
-    } catch {
+    }
+    catch {
         throw "Failed to create GPO '$Name': $($_.Exception.Message)"
     }
+    $gpoGuid = $gpo.Id.ToString('B').ToUpper()   # "{XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX}"
+    Write-Verbose "New GPO GUID: $gpoGuid"
 
     try {
-        $gpoRoot    = "\\$domainFqdn\SYSVOL\sysvol\$domainFqdn\Policies\$($gpo.Id)"
+        $gpoRoot = "\\$domainFqdn\SYSVOL\sysvol\$domainFqdn\Policies\$gpoGuid"
         $gpoMachine = Join-Path $gpoRoot 'Machine'
         $gptIniPath = Join-Path $gpoRoot 'gpt.ini'
 
-        # --- 1. LDAP Interface Events: kept as a Preference item (no native policy exists for this value;
-        #        this mirrors how the reference GPO backup itself represents it). This cmdlet handles its
-        #        own CSE registration and version bump internally. ---
-        Write-Verbose "Setting LDAP Interface Events (Preference): NTDS\Diagnostics\16 LDAP Interface Events = 2"
-        Set-GPPrefRegistryValue -Name $Name -Domain $domainFqdn -Context Computer -Action Update `
-            -Key 'HKLM\SYSTEM\CurrentControlSet\Services\NTDS\Diagnostics' -ValueName '16 LDAP Interface Events' `
-            -Type DWord -Value 2 -ErrorAction Stop | Out-Null
-
-        # --- 2. NTLM auditing + Security log size: native Security Options via GptTmpl.inf,
-        #        formatted to match the reference GPO backup. ---
+        # --- 2. Write GptTmpl.inf (native Security Options: NTLM auditing + Security log size) ---
         $secEditDir = Join-Path $gpoMachine 'Microsoft\Windows NT\SecEdit'
         New-Item -ItemType Directory -Path $secEditDir -Force | Out-Null
         $gptTmpl = @"
@@ -117,46 +81,66 @@ MACHINE\System\CurrentControlSet\Control\Lsa\MSV1_0\AuditReceivingNTLMTraffic=4,
 "@
         Set-Content -Path (Join-Path $secEditDir 'GptTmpl.inf') -Value $gptTmpl -Encoding Unicode
 
-        # --- 3. Register the Security CSE so clients actually process GptTmpl.inf, and bump versions. ---
-        $secCse  = '{827D319E-6EAC-11D2-A4EA-00C04F79F83A}'
-        $secTool = '{803E14A0-B4FB-11D0-A0D0-00A0C90F574B}'
+        # --- 3. Write Registry.xml (Preference: LDAP Interface Events) ---
+        $regPrefDir = Join-Path $gpoMachine 'Preferences\Registry'
+        New-Item -ItemType Directory -Path $regPrefDir -Force | Out-Null
+        $uid = [guid]::NewGuid().ToString('D').ToUpper()
+        $changed = (Get-Date).ToString('yyyy-MM-dd HH:mm:ss')
+        $regXml = @"
+<?xml version="1.0" encoding="utf-8"?>
+<RegistrySettings clsid="{A3CCFC41-DFDB-43a5-8D26-0FE8B954DA51}">
+  <Registry clsid="{9CD4B2F4-923D-47f5-A062-E897DD1DAD50}" name="16 LDAP Interface Events" status="16 LDAP Interface Events" image="12" changed="$changed" uid="{$uid}">
+    <Properties action="U" displayDecimal="1" default="0" hive="HKEY_LOCAL_MACHINE" key="SYSTEM\CurrentControlSet\Services\NTDS\Diagnostics" name="16 LDAP Interface Events" type="REG_DWORD" value="00000002"/>
+  </Registry>
+</RegistrySettings>
+"@
+        Set-Content -Path (Join-Path $regPrefDir 'Registry.xml') -Value $regXml -Encoding UTF8
+
+        # --- 4. Tell clients to actually run the Security + Registry-Preference engines for this GPO.
+        #        Fresh GPO -> gPCMachineExtensionNames starts empty, so this can be one hardcoded,
+        #        pre-sorted (ascending by CSE GUID) string; no merge with prior values needed. ---
+        $gpcExtensionNames = '[{827D319E-6EAC-11D2-A4EA-00C04F79F83A}{803E14A0-B4FB-11D0-A0D0-00A0C90F574B}]' + `
+            '[{B087BE9D-ED37-454F-AF9C-04291E351182}{BEE07A6A-EC9F-4659-B8C9-0B1937907C83}]'
 
         $adGpo = $null
         for ($i = 0; $i -lt 15 -and -not $adGpo; $i++) {
-            $adGpo = Get-ADObject -Server $pdcHost -Identity $gpo.Id -Properties gPCMachineExtensionNames, versionNumber -ErrorAction SilentlyContinue
+            $adGpo = Get-ADObject -Server $pdcHost -Identity $gpo.Id -Properties versionNumber -ErrorAction SilentlyContinue
             if (-not $adGpo) { Start-Sleep -Seconds 2 }
         }
         if (-not $adGpo) {
-            throw "GPO AD container not found for GUID $($gpo.Id) on PDC $pdcHost. Confirm the GPO was created and AD replication completed."
+            throw "GPO AD container not found for GUID $gpoGuid on PDC $pdcHost. Confirm the GPO was created and AD replication completed."
         }
 
-        $newExt = Merge-GPCExtensionGuid -Current $adGpo.gPCMachineExtensionNames -CseGuid $secCse -ToolGuid $secTool
-        $newVer = Step-GPOVersion -CurrentVersion $adGpo.versionNumber
+        # New GPO starts at version 0; bump the low 16 bits (computer/machine version) by 1.
+        $newVer = ([int]$adGpo.versionNumber -band 0xFFFF0000) -bor ((([int]$adGpo.versionNumber -band 0xFFFF) + 1) -band 0xFFFF)
 
-        Write-Verbose "Registering Security CSE and bumping version to $newVer at $($adGpo.DistinguishedName) on $pdcHost"
+        Write-Verbose "Setting gPCMachineExtensionNames and bumping version to $newVer at $($adGpo.DistinguishedName) on $pdcHost"
         Set-ADObject -Server $pdcHost -Identity $adGpo.DistinguishedName -Replace @{
-            gPCMachineExtensionNames = $newExt
-            versionNumber            = [int]$newVer
+            gPCMachineExtensionNames = $gpcExtensionNames
+            versionNumber = [int]$newVer
         }
 
-        # --- 4. Keep SYSVOL's gpt.ini in sync with the AD version number. ---
+        # --- 5. Keep SYSVOL's gpt.ini in sync with the AD version number ---
         if (Test-Path $gptIniPath) {
             $gptContent = Get-Content -Path $gptIniPath -Raw
             if ($gptContent -match '(?m)^Version=\d+') {
                 $gptContent = $gptContent -replace '(?m)^Version=\d+', "Version=$newVer"
-            } else {
+            }
+            else {
                 $gptContent = $gptContent.TrimEnd() + "`r`nVersion=$newVer`r`n"
             }
-        } else {
+        }
+        else {
             $gptContent = "[General]`r`nVersion=$newVer`r`n"
         }
         Set-Content -Path $gptIniPath -Value $gptContent -Encoding ASCII -NoNewline
 
-        Write-Host "Audit GPO '$Name' created and configured ($($gpo.Id))." -ForegroundColor Green
+        Write-Host "Audit GPO '$Name' created and configured ($gpoGuid)." -ForegroundColor Green
         Write-Host "The GPO was NOT linked. Don't forget to review and link the GPO." -ForegroundColor Green
 
         return $gpo
-    } catch {
+    }
+    catch {
         try { Remove-GPO -Guid $gpo.Id -Domain $domainFqdn -ErrorAction SilentlyContinue } catch {}
         throw "Failed to configure GPO '$Name': $($_.Exception.Message)"
     }
