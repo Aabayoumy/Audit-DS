@@ -38,7 +38,6 @@ function New-AuditGPO {
 
     $domain = Get-ADDomain
     $domainFqdn = $domain.DNSRoot
-    $pdcHost = $domain.PDCEmulator
 
     # --- GPO name collision check ---
     $existingGpo = Get-GPO -Name $Name -Domain $domainFqdn -ErrorAction SilentlyContinue
@@ -51,15 +50,14 @@ function New-AuditGPO {
     Write-Verbose "Creating GPO '$Name' in domain $domainFqdn"
     try {
         $gpo = New-GPO -Name $Name -Domain $domainFqdn -ErrorAction Stop
-    }
-    catch {
+    } catch {
         throw "Failed to create GPO '$Name': $($_.Exception.Message)"
     }
     $gpoGuid = $gpo.Id.ToString('B').ToUpper()   # "{XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX}"
     Write-Verbose "New GPO GUID: $gpoGuid"
 
     try {
-        $gpoRoot = "\\$domainFqdn\SYSVOL\sysvol\$domainFqdn\Policies\$gpoGuid"
+        $gpoRoot    = "\\$domainFqdn\SYSVOL\sysvol\$domainFqdn\Policies\$gpoGuid"
         $gpoMachine = Join-Path $gpoRoot 'Machine'
         $gptIniPath = Join-Path $gpoRoot 'gpt.ini'
 
@@ -100,50 +98,49 @@ MACHINE\System\CurrentControlSet\Control\Lsa\MSV1_0\AuditReceivingNTLMTraffic=4,
         #        Fresh GPO -> gPCMachineExtensionNames starts empty, so this can be one hardcoded,
         #        pre-sorted (ascending by CSE GUID) string; no merge with prior values needed. ---
         $gpcExtensionNames = '[{827D319E-6EAC-11D2-A4EA-00C04F79F83A}{803E14A0-B4FB-11D0-A0D0-00A0C90F574B}]' + `
-            '[{B087BE9D-ED37-454F-AF9C-04291E351182}{BEE07A6A-EC9F-4659-B8C9-0B1937907C83}]'
+                             '[{B087BE9D-ED37-454F-AF9C-04291E351182}{BEE07A6A-EC9F-4659-B8C9-0B1937907C83}]'
 
+        # Deliberately NOT forcing -Server $pdcHost here: New-GPO succeeded without it, and forcing a
+        # specific DC for the follow-up read/write was causing a consistent (non-transient) failure —
+        # let the ActiveDirectory module fall back to its normal default DC targeting instead.
         $adGpo = $null
         for ($i = 0; $i -lt 15 -and -not $adGpo; $i++) {
-            $adGpo = Get-ADObject -Server $pdcHost -Identity $gpo.Id -Properties versionNumber -ErrorAction SilentlyContinue
+            $adGpo = Get-ADObject -Identity $gpo.Id -Properties versionNumber -ErrorAction SilentlyContinue
             if (-not $adGpo) { Start-Sleep -Seconds 2 }
         }
         if (-not $adGpo) {
-            throw "GPO AD container not found for GUID $gpoGuid on PDC $pdcHost. Confirm the GPO was created and AD replication completed."
+            throw "GPO AD container not found for GUID $gpoGuid. Confirm the GPO was created and AD replication completed."
         }
 
         # New GPO starts at version 0; bump the low 16 bits (computer/machine version) by 1.
         $newVer = ([int]$adGpo.versionNumber -band 0xFFFF0000) -bor ((([int]$adGpo.versionNumber -band 0xFFFF) + 1) -band 0xFFFF)
 
-        Write-Verbose "Setting gPCMachineExtensionNames and bumping version to $newVer at $($adGpo.DistinguishedName) on $pdcHost"
-        # Set-ADObject can transiently throw "Directory object not found" (ADIdentityNotFoundException) even
-        # right after a successful Get-ADObject on the same DC — ADWS's read/write consistency point can lag
-        # by a second or two immediately after object creation. Retry the write the same way we retried the read.
+        Write-Verbose "Setting gPCMachineExtensionNames and bumping version to $newVer at $($adGpo.DistinguishedName)"
         $writeOk = $false
+        $lastWriteError = $null
         for ($i = 0; $i -lt 10 -and -not $writeOk; $i++) {
             try {
-                Set-ADObject -Server $pdcHost -Identity $adGpo.DistinguishedName -Replace @{
+                Set-ADObject -Identity $adGpo.DistinguishedName -Replace @{
                     gPCMachineExtensionNames = $gpcExtensionNames
-                    versionNumber = [int]$newVer
+                    versionNumber            = [int]$newVer
                 } -ErrorAction Stop
                 $writeOk = $true
-            }
-            catch {
-                if ($i -eq 9) { throw }
+            } catch {
+                $lastWriteError = $_
                 Start-Sleep -Seconds 2
             }
         }
+        if (-not $writeOk) { throw $lastWriteError }
 
         # --- 5. Keep SYSVOL's gpt.ini in sync with the AD version number ---
         if (Test-Path $gptIniPath) {
             $gptContent = Get-Content -Path $gptIniPath -Raw
             if ($gptContent -match '(?m)^Version=\d+') {
                 $gptContent = $gptContent -replace '(?m)^Version=\d+', "Version=$newVer"
-            }
-            else {
+            } else {
                 $gptContent = $gptContent.TrimEnd() + "`r`nVersion=$newVer`r`n"
             }
-        }
-        else {
+        } else {
             $gptContent = "[General]`r`nVersion=$newVer`r`n"
         }
         Set-Content -Path $gptIniPath -Value $gptContent -Encoding ASCII -NoNewline
@@ -152,9 +149,11 @@ MACHINE\System\CurrentControlSet\Control\Lsa\MSV1_0\AuditReceivingNTLMTraffic=4,
         Write-Host "The GPO was NOT linked. Don't forget to review and link the GPO." -ForegroundColor Green
 
         return $gpo
-    }
-    catch {
+    } catch {
         try { Remove-GPO -Guid $gpo.Id -Domain $domainFqdn -ErrorAction SilentlyContinue } catch {}
-        throw "Failed to configure GPO '$Name': $($_.Exception.Message)"
+        $exType = $_.Exception.GetType().FullName
+        $exMsg  = $_.Exception.Message
+        $inner  = if ($_.Exception.InnerException) { " | Inner: $($_.Exception.InnerException.Message)" } else { '' }
+        throw "Failed to configure GPO '$Name': [$exType] $exMsg$inner"
     }
 }
