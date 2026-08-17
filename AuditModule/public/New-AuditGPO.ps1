@@ -115,9 +115,22 @@ MACHINE\System\CurrentControlSet\Control\Lsa\MSV1_0\AuditReceivingNTLMTraffic=4,
         $newVer = ([int]$adGpo.versionNumber -band 0xFFFF0000) -bor ((([int]$adGpo.versionNumber -band 0xFFFF) + 1) -band 0xFFFF)
 
         Write-Verbose "Setting gPCMachineExtensionNames and bumping version to $newVer at $($adGpo.DistinguishedName) on $pdcHost"
-        Set-ADObject -Server $pdcHost -Identity $adGpo.DistinguishedName -Replace @{
-            gPCMachineExtensionNames = $gpcExtensionNames
-            versionNumber = [int]$newVer
+        # Set-ADObject can transiently throw "Directory object not found" (ADIdentityNotFoundException) even
+        # right after a successful Get-ADObject on the same DC — ADWS's read/write consistency point can lag
+        # by a second or two immediately after object creation. Retry the write the same way we retried the read.
+        $writeOk = $false
+        for ($i = 0; $i -lt 10 -and -not $writeOk; $i++) {
+            try {
+                Set-ADObject -Server $pdcHost -Identity $adGpo.DistinguishedName -Replace @{
+                    gPCMachineExtensionNames = $gpcExtensionNames
+                    versionNumber = [int]$newVer
+                } -ErrorAction Stop
+                $writeOk = $true
+            }
+            catch {
+                if ($i -eq 9) { throw }
+                Start-Sleep -Seconds 2
+            }
         }
 
         # --- 5. Keep SYSVOL's gpt.ini in sync with the AD version number ---
