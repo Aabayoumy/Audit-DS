@@ -141,7 +141,7 @@ Creates a new GPO (not linked) named `_Audit-NTLM-Ldap` programmatically — no 
 
 - `-Name`: GPO display name (default: `_Audit-NTLM-Ldap`).
 - Creates the GPO in the **current** AD domain and does **not** link it.
-- Writes the GPO's `GptTmpl.inf` (Security Settings) and Group Policy Preference `Registry.xml` directly into SYSVOL, then bumps the GPO version so clients pick it up.
+- Uses `Set-GPRegistryValue` for every setting. The GroupPolicy module writes `registry.pol` and updates the GPO version.
 - The GPO configures:
 
   | Setting | Value |
@@ -150,9 +150,9 @@ Creates a new GPO (not linked) named `_Audit-NTLM-Ldap` programmatically — no 
   | Network security: Restrict NTLM: Audit NTLM authentication in this domain | Enable all |
   | Network security: Restrict NTLM: Outgoing NTLM traffic to remote servers | Audit all |
   | Event Log Service Security log maximum size | 2 GB (2097152 KB) |
-  | Registry preference `HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\NTDS\Diagnostics` → `16 LDAP Interface Events` | `2` (Decimal, `REG_DWORD`) |
+  | Registry policy `HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\NTDS\Diagnostics` → `16 LDAP Interface Events` | `2` (Decimal, `REG_DWORD`) |
 
-- Requires the RSAT Group Policy Management and AD DS modules, plus admin rights to create GPOs.
+- Requires the RSAT Group Policy Management module and rights to create GPOs.
 
 ## Usage
 
