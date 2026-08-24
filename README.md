@@ -142,6 +142,9 @@ Creates a new GPO (not linked) named `_Audit-NTLM-Ldap` programmatically — no 
 - `-Name`: GPO display name (default: `_Audit-NTLM-Ldap`).
 - Creates the GPO in the **current** AD domain and does **not** link it.
 - Uses `Set-GPRegistryValue` for every setting. The GroupPolicy module writes `registry.pol` and updates the GPO version.
+- Fails with an error if a GPO with the same name already exists.
+- If any registry value fails to be set, the partially created GPO is removed automatically.
+- Returns the created `Microsoft.GroupPolicy.Gpo` object on success.
 - The GPO configures:
 
   | Setting | Value |

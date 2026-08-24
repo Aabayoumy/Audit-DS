@@ -2,7 +2,6 @@ function New-AuditGPO {
     [CmdletBinding()]
     param(
         [string]$Name = '_Audit-NTLM-Ldap',
-
         [switch]$Help,
         [switch]$h
     )
@@ -34,11 +33,16 @@ function New-AuditGPO {
     try {
         $gpo = New-GPO -Name $Name -ErrorAction Stop
 
-        Set-GPRegistryValue -Guid $gpo.Id -Key 'HKLM\SYSTEM\CurrentControlSet\Control\Lsa\MSV1_0' -ValueName 'AuditReceivingNTLMTraffic' -Type DWord -Value 2 -ErrorAction Stop
-        Set-GPRegistryValue -Guid $gpo.Id -Key 'HKLM\SYSTEM\CurrentControlSet\Control\Lsa\MSV1_0' -ValueName 'RestrictSendingNTLMTraffic' -Type DWord -Value 1 -ErrorAction Stop
-        Set-GPRegistryValue -Guid $gpo.Id -Key 'HKLM\SYSTEM\CurrentControlSet\Services\Netlogon\Parameters' -ValueName 'AuditNTLMInDomain' -Type DWord -Value 7 -ErrorAction Stop
-        Set-GPRegistryValue -Guid $gpo.Id -Key 'HKLM\SYSTEM\CurrentControlSet\Services\Eventlog\Security' -ValueName 'MaxSize' -Type DWord -Value ([uint32]2147483648) -ErrorAction Stop
-        Set-GPRegistryValue -Guid $gpo.Id -Key 'HKLM\SYSTEM\CurrentControlSet\Services\NTDS\Diagnostics' -ValueName '16 LDAP Interface Events' -Type DWord -Value 2 -ErrorAction Stop
+        $registryValue = @{
+            Guid        = $gpo.Id
+            Type        = 'DWord'
+            ErrorAction = 'Stop'
+        }
+        Set-GPRegistryValue @registryValue -Key 'HKLM\SYSTEM\CurrentControlSet\Control\Lsa\MSV1_0' -ValueName 'AuditReceivingNTLMTraffic' -Value 2
+        Set-GPRegistryValue @registryValue -Key 'HKLM\SYSTEM\CurrentControlSet\Control\Lsa\MSV1_0' -ValueName 'RestrictSendingNTLMTraffic' -Value 1
+        Set-GPRegistryValue @registryValue -Key 'HKLM\SYSTEM\CurrentControlSet\Services\Netlogon\Parameters' -ValueName 'AuditNTLMInDomain' -Value 7
+        Set-GPRegistryValue @registryValue -Key 'HKLM\SYSTEM\CurrentControlSet\Services\Eventlog\Security' -ValueName 'MaxSize' -Value ([uint32]2147483648)
+        Set-GPRegistryValue @registryValue -Key 'HKLM\SYSTEM\CurrentControlSet\Services\NTDS\Diagnostics' -ValueName '16 LDAP Interface Events' -Value 2
     } catch {
         if ($gpo) {
             Remove-GPO -Guid $gpo.Id -ErrorAction SilentlyContinue
