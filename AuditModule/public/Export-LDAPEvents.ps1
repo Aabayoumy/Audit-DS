@@ -1,17 +1,15 @@
 function Export-LDAPEvents {
     [CmdletBinding()]
     param (
-        # Define parameters for Audit-LDAP here
         [int]$MaxEvents = 10000,
         [int]$Timeout = 180,
-        [int]$Days = 7, # Number of days back to limit events
+        [int]$Days = 7,
         [Parameter(Mandatory = $false)]
-        [string[]]$IgnoredDCs = @(), # Array of DC names to ignore
+        [string[]]$IgnoredDCs = @(),
         [switch]$Help,
         [switch]$h
     )
 
-    # Check for help parameters or any other parameters
     if ($Help -or $h -or ($Args.Count -gt 0 -and $Args[0] -notin @('-h', '-help', '-MaxEvents', '-Timeout', '-Days', '-IgnoredDCs'))) {
         Write-Host "Exports LDAP events from domain controllers."
         Write-Host "-MaxEvents: Maximum number of events to retrieve (default: 10000)."
@@ -21,54 +19,39 @@ function Export-LDAPEvents {
         return
     }
 
-    AssertAdminPrivileges # Check for admin privileges
+    AssertAdminPrivileges
     $todayFolder = (Get-Date).ToString('yyyy-MM-dd')
     $OutputPath = Join-Path -Path (Join-Path -Path $Global:OutputPath -ChildPath $todayFolder) -ChildPath 'LDAPEvents'
     $null = New-Item -Path $OutputPath -ItemType Directory -Force
-    $StartTime = (Get-Date).AddDays(-$Days) # Limit to the specified number of days
-    $SourceIPs = @() # Initialize an array to collect unique SourceIP values
-    $allDCs = Get-ADDomainController -Filter * | Select-Object -ExpandProperty HostName
-    $ignoredDCsLower = $IgnoredDCs | ForEach-Object {$_.ToLower()}
-    $DCsToProcess = $allDCs | Where-Object { ($_.Split('.')[0]).ToLower() -notin $ignoredDCsLower }
+    $StartTime = (Get-Date).AddDays(-$Days)
+    $SourceIPs = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
+    $DCsToProcess = Get-FilteredDCs -IgnoredDCs $IgnoredDCs
     $totalDCs = $DCsToProcess.Count
     $i = 0
-    foreach ($DC in $DCsToProcess){
+
+    foreach ($DC in $DCsToProcess) {
         $i++
-        $OutputFile = "$OutputPath\$($DC).csv"
         Write-Progress -Activity "Exporting LDAP Events" -Status "Processing DC: $($DC)" -CurrentOperation "Processed $i of $totalDCs DCs" -PercentComplete (($i / $totalDCs) * 100)
         Write-Host "[$($DC)] Searching log"
-        $job = Start-Job -ScriptBlock {
+
+        $result = Invoke-DCEventJob -DC $DC -Timeout $Timeout -ArgumentList @($DC, $StartTime, $MaxEvents) -ScriptBlock {
             param($DC, $StartTime, $MaxEvents)
-        Get-WinEvent -ComputerName $DC -FilterHashtable @{
-            LogName = 'Directory Service';
-            ID = 2889;
-            StartTime = $StartTime
-        } -MaxEvents $MaxEvents | Select-Object @{Label='Time';Expression={$_.TimeCreated.ToString('g')}}, @{Label='SourceIP';Expression={$_.Properties[0].Value.Split(':')[0]}}, @{Label='User';Expression={$_.Properties[1].Value}}
-                } -ArgumentList $DC, $StartTime, $MaxEvents
-
-        $job | Wait-Job -Timeout $Timeout | Out-Null
-
-        if ($job.State -eq 'Running') {
-            Write-Warning "[$($DC)] Get-WinEvent timed out after $($Timeout) seconds."
-            $job | Stop-Job
-            $Events = $null
-        } elseif ($job.State -eq 'Completed') {
-            $Events = $job | Receive-Job
-        } else {
-            Write-Warning "[$($DC)] Get-WinEvent job failed with state: $($job.State)."
-            $job.Error | ForEach-Object { Write-Error $_ }
-            $Events = $null
+            Get-WinEvent -ComputerName $DC -FilterHashtable @{
+                LogName = 'Directory Service';
+                ID = 2889;
+                StartTime = $StartTime
+            } -MaxEvents $MaxEvents | Select-Object @{Label='Time';Expression={$_.TimeCreated.ToString('g')}},
+            @{Label='SourceIP';Expression={$_.Properties[0].Value.Split(':')[0]}},
+            @{Label='User';Expression={$_.Properties[1].Value}}
         }
 
-        if ($Events) {
-            $SourceIPs += $Events | Select-Object -ExpandProperty SourceIP | Sort-Object -Unique # Collect unique SourceIP values
-            $Events | Select-Object Time, SourceIP, User | Export-Csv $OutputFile -NoTypeInformation
-        }
-        elseif ($job.State -eq 'Completed') {
+        if ($result.Events) {
+            $result.Events | Select-Object -ExpandProperty SourceIP | ForEach-Object { $null = $SourceIPs.Add($_) }
+            $result.Events | Select-Object Time, SourceIP, User | Export-Csv "$OutputPath\$($DC).csv" -NoTypeInformation
+        } elseif ($result.State -eq 'Completed') {
             Write-Host "[$($DC)] No LDAP events (EventID 2889) found."
         }
-        $job | Remove-Job
     }
-    $SourceIPs | Sort-Object -Unique  | Out-File "$OutputPath\SourceIPs.txt" -Encoding UTF8 # Export unique SourceIP values to SourceIPs.txt
-        Start-Process "$($OutputPath)"
+    $SourceIPs | Sort-Object | Out-File "$OutputPath\SourceIPs.txt" -Encoding UTF8
+    Start-Process "$($OutputPath)"
 }

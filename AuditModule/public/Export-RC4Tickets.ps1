@@ -35,22 +35,19 @@ function Export-RC4Tickets {
     $null = New-Item -Path $OutputPath -ItemType Directory -Force
 
     $start = (Get-Date).AddDays(-$Days)
-    $events = @()
+    $allEvents = [System.Collections.Generic.List[object]]::new()
 
     Write-Host 'Enumerating domain controllers...'
-    $allDCs = Get-ADDomainController -Filter * | Select-Object -ExpandProperty HostName
-    $ignoredDCsLower = $IgnoredDCs | ForEach-Object { $_.ToLower() }
-    $dcs = $allDCs | Where-Object { ($_.Split('.')[0]).ToLower() -notin $ignoredDCsLower }
+    $dcs = Get-FilteredDCs -IgnoredDCs $IgnoredDCs
     $totalDCs = $dcs.Count
     $i = 0
 
     foreach ($dc in $dcs) {
         $i++
-        $outputFile = "$OutputPath\$dc.csv"
         Write-Progress -Activity 'Exporting RC4 Kerberos Tickets' -Status "Processing DC: $dc" -CurrentOperation "Processed $i of $totalDCs DCs" -PercentComplete (($i / $totalDCs) * 100)
         Write-Host "[$dc] Searching log"
 
-        $job = Start-Job -ScriptBlock {
+        $result = Invoke-DCEventJob -DC $dc -Timeout $Timeout -ArgumentList @($dc, $start, $MaxEvents) -ScriptBlock {
             param($DC, $StartTime, $MaxEvents)
             Get-WinEvent -ComputerName $DC -FilterHashtable @{
                 LogName   = 'Security'
@@ -73,37 +70,21 @@ function Export-RC4Tickets {
                     }
                 }
             }
-        } -ArgumentList $dc, $start, $MaxEvents
-
-        $job | Wait-Job -Timeout $Timeout | Out-Null
-
-        if ($job.State -eq 'Running') {
-            Write-Warning "[$dc] Get-WinEvent timed out after $Timeout seconds."
-            $job | Stop-Job
-            $dcEvents = $null
-        } elseif ($job.State -eq 'Completed') {
-            $dcEvents = $job | Receive-Job
-        } else {
-            Write-Warning "[$dc] Get-WinEvent job failed with state: $($job.State)."
-            $job.Error | ForEach-Object { Write-Error $_ }
-            $dcEvents = $null
         }
 
-        if ($dcEvents) {
-            Write-Host "[$dc] $($dcEvents.Count) RC4 ticket events"
-            $dcEvents | Export-Csv -NoTypeInformation -Path $outputFile -Encoding UTF8
-            $events += $dcEvents
-        } elseif ($job.State -eq 'Completed') {
+        if ($result.Events) {
+            Write-Host "[$dc] $($result.Events.Count) RC4 ticket events"
+            $result.Events | Export-Csv -NoTypeInformation -Path "$OutputPath\$dc.csv" -Encoding UTF8
+            foreach ($e in $result.Events) { $allEvents.Add($e) }
+        } elseif ($result.State -eq 'Completed') {
             Write-Host "[$dc] No RC4-encrypted service-ticket events found."
         }
-
-        $job | Remove-Job
     }
 
     $combinedFile = "$OutputPath\RC4-4769-AllDCs.csv"
-    if ($events) {
-        $events | Sort-Object Time | Export-Csv -NoTypeInformation -Path $combinedFile -Encoding UTF8
-        Write-Host "Saved $($events.Count) RC4 service-ticket events to: $combinedFile"
+    if ($allEvents.Count -gt 0) {
+        $allEvents | Sort-Object Time | Export-Csv -NoTypeInformation -Path $combinedFile -Encoding UTF8
+        Write-Host "Saved $($allEvents.Count) RC4 service-ticket events to: $combinedFile"
     } else {
         Write-Host 'No RC4-encrypted Kerberos service-ticket events found in any queried DC.'
     }
@@ -113,7 +94,7 @@ function Export-RC4Tickets {
     [PSCustomObject]@{
         OutputPath  = $OutputPath
         CombinedCsv = $combinedFile
-        EventsCount = $events.Count
+        EventsCount = $allEvents.Count
         Days        = $Days
         StartTime   = $start
     }

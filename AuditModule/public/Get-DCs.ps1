@@ -1,5 +1,3 @@
-# Function to list Domain Controllers with specific details
-# Function to list Domain Controllers with specific details
 function Get-DCs {
     [CmdletBinding()]
     param(

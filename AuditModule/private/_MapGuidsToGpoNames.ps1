@@ -1,22 +1,5 @@
+# Internal: maps GPO backup GUIDs to display names. Returns SortedList of [DisplayName -> GUID].
 function MapGuidsToGpoNames {
-<#
-.SYNOPSIS
-Internal function to map GUIDs in a GPO backup to GPO display names.
-
-.DESCRIPTION
-Reads GPO backup directories to find "backup.xml" files, extracts the display name and GUID,
-and returns a SortedList mapping display names to GUIDs.
-
-.PARAMETER RootDir
-Path to the directory containing one or more GPO backups.
-
-.EXAMPLE
-$gpoMap = MapGuidsToGpoNames -RootDir "C:\Path\To\GPO\Backups"
-$gpoMap["My GPO Name"] # Returns the GUID for "My GPO Name"
-
-.OUTPUTS
-System.Collections.SortedList
-#>
     [CmdletBinding()]
     param(
         [parameter(Mandatory=$true)]

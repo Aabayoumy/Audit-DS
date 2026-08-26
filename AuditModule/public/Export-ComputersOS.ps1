@@ -263,9 +263,9 @@ function Export-ComputersOS {
 
     # Process computers and add EOS data
     Write-Host "Processing computer data and adding End-of-Support information..."
-    $results = @()
-    foreach ($computer in $adComputers) {
-        # Convert lastLogonTimestamp (FileTime) to DateTime
+    $currentDate = Get-Date
+    $results = foreach ($computer in $adComputers) {
+        $supportInfo = $null
         $lastLogonDate = if ($computer.lastLogonTimestamp -and $computer.lastLogonTimestamp -ne 0 -and $computer.lastLogonTimestamp -ne -1) {
             try {
                 [DateTime]::FromFileTime($computer.lastLogonTimestamp)
@@ -274,10 +274,9 @@ function Export-ComputersOS {
                 $null
             }
         } else {
-            $null # Or set to a specific value like 'Never' or $null
+            $null
         }
 
-        # Extract Build Number from OperatingSystemVersion (e.g., "10.0 (19045)")
         $buildNumber = $null
         if ($computer.OperatingSystemVersion -match '\((?<build>\d+)\)') {
             $buildNumber = $Matches.build
@@ -285,40 +284,29 @@ function Export-ComputersOS {
             Write-Warning "Could not extract build number from OperatingSystemVersion '$($computer.OperatingSystemVersion)' for computer '$($computer.Name)'."
         }
 
-        # Look up EOS date using the extracted build number
-        $eosDate = $null
-        if ($buildNumber -and $osSupportLookup.ContainsKey($buildNumber)) {
-            $eosDate = $osSupportLookup[$buildNumber]
-        } elseif ($buildNumber) {
-            Write-Warning "No EOS date found for extracted build number '$buildNumber' on computer '$($computer.Name)' (OS Version: $($computer.OperatingSystemVersion))."
-        } # No warning if build number couldn't be extracted, already warned above
-
-        # Determine Support Status
         $status = "Unknown"
-        $currentDate = Get-Date
         if ($buildNumber -and $osSupportLookup.ContainsKey($buildNumber)) {
             $supportInfo = $osSupportLookup[$buildNumber]
             $mainstreamDate = $supportInfo.Mainstream
             $extendedDate = $supportInfo.Extended
-            # Determine support status based on current date and EOS dates            
             if ($extendedDate -ne $null) {
                 if ($currentDate -gt $extendedDate) {
                     $status = "Out of support"
-                } 
-                ElseIf ($currentDate -gt $mainstreamDate ) {
+                } ElseIf ($currentDate -gt $mainstreamDate) {
                     $status = "in extended support"
                 } else {
                     $status = "in support"
                 }
-            }
-            ElseIf ($currentDate -gt $mainstreamDate) {
+            } ElseIf ($currentDate -gt $mainstreamDate) {
                 $status = "Out of support"
             } else {
                 $status = "in support"
-            } 
+            }
+        } elseif ($buildNumber) {
+            Write-Warning "No EOS date found for extracted build number '$buildNumber' on computer '$($computer.Name)' (OS Version: $($computer.OperatingSystemVersion))."
         }
-        # Create custom object for output
-        $outputObject = [PSCustomObject]@{
+
+        [PSCustomObject]@{
             Name                     = $computer.Name
             OperatingSystem          = $computer.OperatingSystem
             BuildNumber              = $buildNumber
@@ -328,7 +316,6 @@ function Export-ComputersOS {
             EndOfExtendedSupport     = if ($supportInfo) { $supportInfo.Extended } else { $null }
             Status                   = $status
         }
-        $results += $outputObject
     }
 
     # Filter results based on support status if -ExportAll is not specified

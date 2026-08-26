@@ -34,9 +34,7 @@ function Export-Assesment {
 
     if (Test-Path -Path $adInfoPath) {
         $adInfoTarget = Join-Path -Path $assessmentPath -ChildPath 'ADInfo'
-        if (Test-Path -Path $adInfoTarget) {
-            Remove-Item -Path $adInfoTarget -Recurse -Force
-        }
+        Remove-Item -Path $adInfoTarget -Recurse -Force -ErrorAction SilentlyContinue
         Copy-Item -Path $adInfoPath -Destination $adInfoTarget -Recurse -Force
     } else {
         Write-Warning "ADInfo folder not found at $adInfoPath"
@@ -44,9 +42,7 @@ function Export-Assesment {
 
     if (Test-Path -Path $pingCastlePath) {
         $pingCastleTarget = Join-Path -Path $assessmentPath -ChildPath 'PingCastle'
-        if (Test-Path -Path $pingCastleTarget) {
-            Remove-Item -Path $pingCastleTarget -Recurse -Force
-        }
+        Remove-Item -Path $pingCastleTarget -Recurse -Force -ErrorAction SilentlyContinue
         Copy-Item -Path $pingCastlePath -Destination $pingCastleTarget -Recurse -Force
     } else {
         Write-Warning "PingCastle folder not found at $pingCastlePath"

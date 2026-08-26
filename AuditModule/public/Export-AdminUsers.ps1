@@ -1,5 +1,3 @@
-# Function to export administrative users based on group membership and adminCount
-# Function to export administrative users based on group membership and adminCount
 function Export-AdminUsers {
     [CmdletBinding()]
     param(
@@ -16,8 +14,12 @@ function Export-AdminUsers {
         return
     }
 
-    AssertAdminPrivileges # Check for admin privileges
-    # if OutputPath is not set, use $Global:OutputPath
+    AssertAdminPrivileges
+    if (-not (Get-Module -ListAvailable -Name ActiveDirectory)) {
+        Write-Error "Active Directory module is not installed. Please install the RSAT tools."
+        return
+    }
+
     if (-not $OutputPath) {
         $todayFolder = (Get-Date).ToString('yyyy-MM-dd')
         $OutputPath = Join-Path -Path (Join-Path -Path $Global:OutputPath -ChildPath $todayFolder) -ChildPath 'AdminUsers'
@@ -25,12 +27,6 @@ function Export-AdminUsers {
 
     $null = New-Item -Path $OutputPath -ItemType Directory -Force
     $OutputFile = "$OutputPath\AdminUsers-$($((Get-Date).ToString('ddMMMyy-HHmm'))).csv"
-    # Ensure the Active Directory module is available
-    if (-not (Get-Module -ListAvailable -Name ActiveDirectory)) {
-        Write-Error "Active Directory module is not installed. Please install the RSAT tools."
-        # Consider using 'return' instead of 'exit 1' within a module function
-        return
-    }
 
     # List of administrative groups to check
     $AdminGroups = @(

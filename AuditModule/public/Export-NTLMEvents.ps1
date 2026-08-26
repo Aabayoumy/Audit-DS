@@ -1,18 +1,16 @@
 function Export-NTLMEvents {
     [CmdletBinding()]
     param (
-        # Define parameters for Audit-NTLM here
         [int]$MaxEvents = 10000,
         [switch]$AllNTLM,
         [int]$Timeout = 180,
-        [int]$Days = 7, # Number of days back to limit events
+        [int]$Days = 7,
         [Parameter(Mandatory = $false)]
-        [string[]]$IgnoredDCs = @(), # Array of DC names to ignore
+        [string[]]$IgnoredDCs = @(),
         [switch]$Help,
         [switch]$h
     )
 
-    # Check for help parameters or any other parameters
     if ($Help -or $h -or ($Args.Count -gt 0 -and $Args[0] -notin @('-h', '-help', '-MaxEvents', '-AllNTLM', '-Timeout', '-Days', '-IgnoredDCs'))) {
         Write-Host "Exports NTLM authentication events from domain controllers."
         Write-Host "-MaxEvents: Maximum number of events to retrieve (default: 10000)."
@@ -23,34 +21,30 @@ function Export-NTLMEvents {
         return
     }
 
-    AssertAdminPrivileges # Check for admin privileges
+    AssertAdminPrivileges
     $todayFolder = (Get-Date).ToString('yyyy-MM-dd')
     $OutputPath = Join-Path -Path (Join-Path -Path $Global:OutputPath -ChildPath $todayFolder) -ChildPath 'NTLMEvents'
     $null = New-Item -Path $OutputPath -ItemType Directory -Force
 
-    # Determine which NTLM versions to filter based on the -AllNTLM switch
     $NtlmFilter = if ($AllNTLM.IsPresent) { @('NTLM V1', 'NTLM V2') } else { @('NTLM V1') }
-
-    $allDCs = Get-ADDomainController -Filter * | Select-Object -ExpandProperty HostName
-    $ignoredDCsLower = $IgnoredDCs | ForEach-Object {$_.ToLower()}
-    $DCsToProcess = $allDCs | Where-Object { ($_.Split('.')[0]).ToLower() -notin $ignoredDCsLower }
+    $StartTime = (Get-Date).AddDays(-$Days)
+    $DCsToProcess = Get-FilteredDCs -IgnoredDCs $IgnoredDCs
     $totalDCs = $DCsToProcess.Count
     $i = 0
-    foreach ($DC in $DCsToProcess){
+
+    foreach ($DC in $DCsToProcess) {
         $i++
-        $OutputFile = "$OutputPath\$($DC).csv"
         Write-Progress -Activity "Exporting NTLM Events" -Status "Processing DC: $($DC)" -CurrentOperation "Processed $i of $totalDCs DCs" -PercentComplete (($i / $totalDCs) * 100)
         Write-Host "[$($DC)] Searching log"
-        $StartTime = (Get-Date).AddDays(-$Days) # Limit to the specified number of days
 
-        $job = Start-Job -ScriptBlock {
+        $result = Invoke-DCEventJob -DC $DC -Timeout $Timeout -ArgumentList @($DC, $StartTime, $MaxEvents, $NtlmFilter) -ScriptBlock {
             param($DC, $StartTime, $MaxEvents, $NtlmFilter)
             Get-WinEvent -ComputerName $DC -FilterHashtable @{
                 LogName = 'Security';
                 ID = 4624;
                 StartTime = $StartTime
             } -MaxEvents $MaxEvents | Where-Object {
-                $_.Properties[14].Value -in $NtlmFilter # Use the dynamic filter
+                $_.Properties[14].Value -in $NtlmFilter
             } | Select-Object @{Label='Time';Expression={$_.TimeCreated.ToString('g')}},
             @{Label='User';Expression={$_.Properties[5].Value}},
             @{Label='WorkstationName';Expression={$_.Properties[11].Value}},
@@ -58,34 +52,15 @@ function Export-NTLMEvents {
             @{Label='LogonType';Expression={$_.properties[8].value}},
             @{Label='LmPackageName';Expression={$_.properties[14].value}},
             @{Label='ImpersonationLevel';Expression={$_.properties[20].value}}
-        } -ArgumentList $DC, $StartTime, $MaxEvents, $NtlmFilter
-
-        $job | Wait-Job -Timeout $Timeout | Out-Null
-
-        if ($job.State -eq 'Running') {
-            Write-Warning "[$($DC)] Get-WinEvent timed out after $($Timeout) seconds."
-            $job | Stop-Job
-            $Events = $null
-        } elseif ($job.State -eq 'Completed') {
-            $Events = $job | Receive-Job
-        } else {
-             Write-Warning "[$($DC)] Get-WinEvent job failed with state: $($job.State)."
-             $job.Error | ForEach-Object { Write-Error $_ }
-             $Events = $null
         }
 
-        if ($Events) {
-            # Filter for NTLM V1 events excluding ANONYMOUS LOGON
-            $NtlmV1Events = $Events | Where-Object { $_.LmPackageName -eq 'NTLM V1' -and $_.UserName -ne 'ANONYMOUS LOGON' }
-            $NtlmV1Count = $NtlmV1Events.Count
-            # Update Write-Host to include the count
-            Write-Host "[$($DC)] $NtlmV1Count NTLMv1 Events"
-            $Events | Select-Object Time, WorkstationName, WorkstationIP, User, LmPackageName  | Export-Csv $OutputFile -NoTypeInformation
-        }
-        elseif ($job.State -eq 'Completed') {
+        if ($result.Events) {
+            $NtlmV1Events = $result.Events | Where-Object { $_.LmPackageName -eq 'NTLM V1' -and $_.User -ne 'ANONYMOUS LOGON' }
+            Write-Host "[$($DC)] $($NtlmV1Events.Count) NTLMv1 Events"
+            $NtlmV1Events | Select-Object Time, WorkstationName, WorkstationIP, User, LmPackageName | Export-Csv "$OutputPath\$($DC).csv" -NoTypeInformation
+        } elseif ($result.State -eq 'Completed') {
             Write-Host "[$($DC)] No NTLM events (EventID 4624) found."
         }
-        $job | Remove-Job
     }
     Start-Process "$($OutputPath)"
 }
